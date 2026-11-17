@@ -61,7 +61,16 @@ return [
         //  'bluetooth' = Bluetooth  -> PHP kirim ESC/POS langsung ke port COM printer
         //  'webbluetooth' = Bluetooth dari Chrome (BLE) -> pair & cetak langsung dari browser
         //  'brother'   = Brother QL (Raster) via Bluetooth COM atau Wi-Fi IP:9100
+        //  'agent'     = Print Agent: hosting di internet, printer di venue (lihat agent/)
         'mode' => 'cable',
+
+        // Print Agent — mode 'agent': server (hosting) mengantre tiket, agen di PC venue mencetak
+        // ke printer lokal. Token & jenis printer diatur di Pengaturan › Printer › Print Agent.
+        'agent' => [
+            'token'        => '',         // dibuat dari Pengaturan (disimpan di storage/settings.json)
+            'printer_type' => 'brother',  // 'brother' (QL, DK-22205) atau 'escpos' (thermal struk)
+            'job_ttl'      => 90,         // detik — job yang tidak diambil agen dibatalkan
+        ],
 
         // Brother QL-800/810W/820NWB (Brother Raster, bukan ESC/POS) — mode 'brother'
         'brother' => [

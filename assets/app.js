@@ -140,7 +140,15 @@
         scheduleReset(Math.max(C.resultSeconds, 8));
         return;
       }
-      if (json.print_mode === 'bluetooth' || json.print_mode === 'brother') {
+      if (json.print_mode === 'agent') {
+        // Print Agent di venue yang mencetak — pantau status job
+        if (json.printed === false) return printFailed(json.print_error);
+        if (json.job_id) {
+          $('r-status').textContent = 'Mengirim ke printer…';
+          const r = await waitJob(json.job_id);
+          if (r.status !== 'done') return printFailed(r.error || 'Printer tidak merespons.');
+        }
+      } else if (json.print_mode === 'bluetooth' || json.print_mode === 'brother') {
         // server sudah mencetak (ESC/POS via COM/LAN, atau Brother QL via Bluetooth/Wi-Fi)
         if (json.printed === false) return printFailed(json.print_error);
       } else if (json.print_mode === 'webbluetooth') {
@@ -179,6 +187,21 @@
     if ($('bt-retry')) $('bt-retry').hidden = true;
     setState('success');
     showRoute(d);
+  }
+
+  // Pantau job Print Agent sampai selesai / gagal (maks ±25 detik)
+  async function waitJob(id) {
+    const until = Date.now() + 25000;
+    while (Date.now() < until) {
+      try {
+        const res = await fetch('api/job.php?id=' + encodeURIComponent(id), { cache: 'no-store' });
+        const j = await res.json();
+        if (j.status === 'done' || j.status === 'failed') return j;
+        if (j.status === 'taken') $('r-status').textContent = 'Mencetak…';
+      } catch (_) { /* jaringan sesaat terputus — coba lagi */ }
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    return { status: 'failed', error: 'Print Agent tidak merespons. Periksa PC agen di venue.' };
   }
 
   function printFailed(msg, canRetry) {

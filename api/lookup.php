@@ -11,6 +11,7 @@ declare(strict_types=1);
 require __DIR__ . '/../lib/functions.php';
 require __DIR__ . '/../lib/escpos.php';
 require __DIR__ . '/../lib/brother.php';
+require __DIR__ . '/../lib/agent.php';
 
 date_default_timezone_set('Asia/Jakarta');
 
@@ -40,6 +41,18 @@ try {
 if (!empty($data['unassigned'])) {
     log_print($id, $data, 'BELUM ADA MEJA');
     json_response(['ok' => true, 'data' => $data, 'unassigned' => true, 'print_mode' => $mode, 'printed' => null]);
+}
+
+// Print Agent: masukkan ke antrean, agen di venue yang mencetak (kiosk memantau status job)
+if ($mode === 'agent' && $cfg['print']['auto_print']) {
+    try {
+        $jobId = queue_add($data);
+        $reprint = log_print($id, $data, 'ANTRE', 'job ' . $jobId);
+        json_response(['ok' => true, 'data' => $data, 'reprint' => $reprint, 'print_mode' => 'agent', 'job_id' => $jobId, 'printed' => null]);
+    } catch (Throwable $ex) {
+        $reprint = log_print($id, $data, 'GAGAL CETAK', $ex->getMessage());
+        json_response(['ok' => true, 'data' => $data, 'reprint' => $reprint, 'print_mode' => 'agent', 'printed' => false, 'print_error' => $ex->getMessage()]);
+    }
 }
 
 $printed = null;      // null = dicetak oleh browser (mode kabel / Bluetooth Chrome)

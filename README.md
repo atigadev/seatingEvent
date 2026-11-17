@@ -148,6 +148,28 @@ PWA, kamera, dan Bluetooth hanya jalan lewat HTTPS bila dibuka dari perangkat la
 > Mode printer berlaku untuk semua perangkat yang memakai server ini.
 > Service worker men-cache aset: setelah mengubah CSS/JS, naikkan `VERSION` di `sw.js`.
 
+## Print Agent — aplikasi di hosting, printer di venue
+Hosting di internet tidak bisa menjangkau printer di jaringan lokal venue (mis. `172.16.16.192`).
+Mode **Print Agent (Hosting)** memecahkannya tanpa membuka printer ke internet:
+
+```
+kiosk/iPad/Android ──HTTPS──▶ hosting (antrean storage/queue/)
+                                   ▲  HTTPS keluar, long-poll ±15 dtk
+                          PC di venue: agent/print-agent.php ──LAN 9100 / COM──▶ printer
+```
+
+1. Hosting: Pengaturan › Printer › **Print Agent (Hosting)** → pilih jenis printer (Brother QL / thermal ESC/POS)
+   → **Buat token** → Simpan.
+2. PC venue (satu Wi-Fi dengan printer, butuh PHP — XAMPP cukup): salin aplikasi, salin
+   `agent/agent-config.example.php` → `agent/agent-config.php`, isi `server`, `token`, `printer`.
+3. Jalankan `agent\start-agent.bat` (biarkan terbuka; otomatis restart bila berhenti).
+   Status agen (ONLINE/OFFLINE) tampil di Pengaturan → **Simpan & Test Cetak**.
+
+- Kiosk menampilkan "Mengirim ke printer… → Silakan ambil tiket", atau pesan gagal bila agen/printer bermasalah.
+- Job yang tidak diambil agen dalam 90 dtk (`print.agent.job_ttl`) **dibatalkan** — tidak tercetak belakangan.
+- Data cetak dihapus dari server segera setelah tercetak; riwayat job dibersihkan otomatis.
+- `agent/agent-config.php` berisi token → tidak di-commit (.gitignore). Ganti token kapan saja dari Pengaturan.
+
 ## Brother QL-820NWB (label DK-22205 62 mm)
 Pengaturan › Printer › **Brother QL (Label)**. Printer ini tidak memakai ESC/POS: server menggambar tiket
 (GD, 300 dpi, lebar 696 titik) lalu mengirim **Brother Raster Command** (`lib/brother.php`).

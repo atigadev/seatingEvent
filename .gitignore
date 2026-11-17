@@ -21,3 +21,6 @@ Thumbs.db
 .DS_Store
 .vscode/
 .idea/
+
+# Config Print Agent (berisi token rahasia)
+agent/agent-config.php

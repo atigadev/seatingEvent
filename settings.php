@@ -122,6 +122,12 @@ if ($authed && $action !== '') {
             flash('Teks layar standby disimpan.');
             back('standby');
 
+        /* --- Token Print Agent --- */
+        case 'agent_token':
+            update_settings(['agent' => ['token' => bin2hex(random_bytes(20))]]);
+            flash('Token agen baru dibuat. Salin ke agent-config.php di PC venue (token lama tidak berlaku lagi).');
+            back('printer');
+
         /* --- Cek status printer Brother (tanpa mencetak) --- */
         case 'brother_status':
             require_once __DIR__ . '/lib/brother.php';
@@ -144,7 +150,7 @@ if ($authed && $action !== '') {
         /* --- 3. Printer --- */
         case 'save_printer':
         case 'test_printer':
-            $mode = in_array($_POST['mode'] ?? '', ['cable', 'bluetooth', 'webbluetooth', 'brother'], true) ? $_POST['mode'] : 'cable';
+            $mode = in_array($_POST['mode'] ?? '', ['cable', 'bluetooth', 'webbluetooth', 'brother', 'agent'], true) ? $_POST['mode'] : 'cable';
             $port = trim((string) ($_POST['port_manual'] ?? '')) ?: trim((string) ($_POST['port'] ?? ''));
             $bt = [
                 'port'           => $port,
@@ -154,13 +160,36 @@ if ($authed && $action !== '') {
             $brPort = trim((string) ($_POST['br_port_manual'] ?? '')) ?: trim((string) ($_POST['br_port'] ?? ''));
             $br = ['port' => $brPort, 'media' => 'DK-22205', 'cut' => !empty($_POST['br_cut'])];
             $patch = ['mode' => $mode, 'brother' => $br];
-            if ($mode !== 'brother') {
-                $patch['bluetooth'] = $bt; // jangan timpa port ESC/POS dengan isian kosong saat memakai Brother
+            if (isset($_POST['agent_printer_type'])) {
+                $patch['agent'] = ['printer_type' => $_POST['agent_printer_type'] === 'escpos' ? 'escpos' : 'brother'];
+            }
+            if ($mode === 'agent') {
+                unset($patch['brother']); // isian port Brother tidak dipakai di mode agen
+            }
+            if (!in_array($mode, ['brother', 'agent'], true)) {
+                $patch['bluetooth'] = $bt; // jangan timpa port ESC/POS dengan isian kosong saat memakai Brother / agen
             }
             update_settings($patch);
 
             if ($action === 'save_printer') {
                 flash('Pengaturan printer disimpan.');
+                back('printer');
+            }
+            if ($mode === 'agent') {
+                try {
+                    require_once __DIR__ . '/lib/agent.php';
+                    if ((string) (agent_cfg()['token'] ?? '') === '') {
+                        throw new RuntimeException('Buat token agen terlebih dahulu.');
+                    }
+                    $sample = ['id' => 'TEST-0000', 'kursi' => 'A01', 'nama' => 'Test Cetak Print Agent', 'jabatan' => '', 'instansi' => 'Instansi Contoh'];
+                    $jid = queue_add($sample);
+                    $st = agent_state();
+                    flash('Test cetak masuk antrean (job ' . $jid . '). '
+                        . (!empty($st['online']) ? 'Agen online — label akan keluar dalam beberapa detik.' : 'Agen BELUM online — jalankan agent\\start-agent.bat di PC venue (job dibatalkan otomatis setelah ' . (int) agent_cfg()['job_ttl'] . ' detik).'),
+                        !empty($st['online']) ? 'ok' : 'err');
+                } catch (Throwable $ex) {
+                    flash($ex->getMessage(), 'err');
+                }
                 back('printer');
             }
             if ($mode === 'brother') {
@@ -494,6 +523,64 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         <div class="t">Brother QL (Label)</div>
         <div class="d">QL-800/810W/820NWB, label DK-22205 62 mm. Via Bluetooth (COM) atau Wi-Fi (IP:9100).</div>
       </label>
+      <label class="mode">
+        <input type="radio" name="mode" value="agent" <?= $m === 'agent' ? 'checked' : '' ?>>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M8 14a4 4 0 0 1 8 0"/><circle cx="12" cy="14" r="1.5"/><path d="M12 16v5"/></svg>
+        <div class="t">Print Agent (Hosting)</div>
+        <div class="d">Aplikasi di hosting internet, printer di venue. Agen di PC venue mengambil & mencetak tiket.</div>
+      </label>
+    </div>
+
+    <?php
+      require_once __DIR__ . '/lib/agent.php';
+      $ag = agent_cfg($cfg);
+      $agState = agent_state();
+      $serverUrl = app_base_url();
+    ?>
+    <div id="agent-panel">
+      <div class="row">
+        <div>
+          <label class="f" for="agent_printer_type">Printer di venue</label>
+          <select id="agent_printer_type" name="agent_printer_type">
+            <option value="brother" <?= $ag['printer_type'] !== 'escpos' ? 'selected' : '' ?>>Brother QL-820NWB · DK-22205 62 mm</option>
+            <option value="escpos" <?= $ag['printer_type'] === 'escpos' ? 'selected' : '' ?>>Printer thermal struk (ESC/POS)</option>
+          </select>
+        </div>
+        <div>
+          <label class="f">Status agen</label>
+          <?php if (!$agState): ?>
+            <div class="small" style="padding:12px 0;color:#ffd58a">Belum pernah terhubung</div>
+          <?php else: ?>
+            <div class="small" style="padding:8px 0;line-height:1.5">
+              <b style="color:<?= $agState['online'] ? 'var(--ok)' : 'var(--err)' ?>"><?= $agState['online'] ? '● ONLINE' : '● OFFLINE' ?></b>
+              · <?= e($agState['name'] ?? '') ?><br>
+              Printer: <?= e($agState['printer'] ?? '-') ?> · Antre: <?= (int) $agState['pending'] ?><br>
+              <span style="color:var(--muted)">Terakhir: <?= e(date('d/m H:i:s', (int) $agState['last_seen'])) ?></span>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <label class="f">Token agen</label>
+      <div class="row" style="align-items:center">
+        <div><input type="text" readonly value="<?= e($ag['token'] ?: '(belum dibuat)') ?>" onclick="this.select()" style="font-family:Consolas,monospace;font-size:14px"></div>
+        <div style="flex:0 0 auto"><button class="secondary" name="action" value="agent_token"
+             onclick="return <?= $ag['token'] ? "confirm('Buat token baru? Agen yang memakai token lama akan berhenti sampai token diperbarui.')" : 'true' ?>">
+             <?= $ag['token'] ? 'Buat token baru' : 'Buat token' ?></button></div>
+      </div>
+      <div class="help" style="margin-top:16px">
+        <strong>Pasang agen di PC venue</strong> (PC yang satu Wi-Fi dengan printer, mis. PC kiosk; butuh PHP — XAMPP cukup):
+        <ol>
+          <li>Salin folder aplikasi ini (atau <code>git clone</code>) ke PC venue.</li>
+          <li>Salin <code>agent\agent-config.example.php</code> menjadi <code>agent\agent-config.php</code>, lalu isi:
+<pre style="white-space:pre-wrap;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin:8px 0">'server'  => '<?= e($serverUrl) ?>',
+'token'   => '<?= e($ag['token'] ?: 'BUAT-TOKEN-DULU') ?>',
+'printer' => '172.16.16.192',   // IP printer (port 9100) atau COM Bluetooth</pre></li>
+          <li>Jalankan <code>agent\start-agent.bat</code> — biarkan jendela tetap terbuka selama acara.</li>
+          <li>Status di atas berubah <b>ONLINE</b>, lalu klik <b>Simpan &amp; Test Cetak</b>.</li>
+        </ol>
+        Agen hanya membuat koneksi keluar (HTTPS) ke server — printer tidak dibuka ke internet.
+        Tiket yang tidak diambil agen dalam <?= (int) $ag['job_ttl'] ?> detik dibatalkan (tidak tercetak belakangan).
+      </div>
     </div>
 
     <?php $brc = $cfg['print']['brother'] ?? []; ?>
@@ -658,7 +745,8 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         document.getElementById('esc-panel').hidden = m === 'cable';
         document.getElementById('cable-panel').hidden = m !== 'cable';
         document.getElementById('brother-panel').hidden = m !== 'brother';
-        if (m === 'brother') document.getElementById('esc-panel').hidden = true;
+        document.getElementById('agent-panel').hidden = m !== 'agent';
+        if (m === 'brother' || m === 'agent') document.getElementById('esc-panel').hidden = true;
       }
       radios.forEach(r => r.addEventListener('change', sync));
       sync();

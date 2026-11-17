@@ -14,6 +14,9 @@ function app_config(): array
         if (isset($saved['bluetooth']) && is_array($saved['bluetooth'])) {
             $config['print']['bluetooth'] = array_merge($config['print']['bluetooth'], $saved['bluetooth']);
         }
+        if (isset($saved['agent']) && is_array($saved['agent'])) {
+            $config['print']['agent'] = array_merge($config['print']['agent'] ?? [], $saved['agent']);
+        }
         if (isset($saved['brother']) && is_array($saved['brother'])) {
             $config['print']['brother'] = array_merge($config['print']['brother'] ?? [], $saved['brother']);
         }
@@ -106,6 +109,8 @@ function print_mode_label(array $cfg): string
             return 'Bluetooth dari Chrome';
         case 'brother':
             return 'Brother QL (' . ($cfg['print']['brother']['port'] ?? '') . ')';
+        case 'agent':
+            return 'Print Agent (' . (($cfg['print']['agent']['printer_type'] ?? 'brother') === 'escpos' ? 'thermal ESC/POS' : 'Brother QL') . ')';
         default:
             return 'Kabel USB';
     }
