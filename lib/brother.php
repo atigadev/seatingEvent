@@ -25,21 +25,27 @@ function bql_cfg(?array $cfg = null): array
     return $b + ['port' => '', 'cut' => true, 'media' => 'DK-22205', 'font_regular' => '', 'font_bold' => ''];
 }
 
-/** Cari file font TTF (config → font Windows → font Linux) */
+/**
+ * Cari file font TTF: config → Arial Windows → Arial macOS → DejaVu Sans bawaan aplikasi (assets/fonts).
+ * Font bawaan menjamin cetak Brother tetap jalan di server mana pun (Linux/Mac/Windows).
+ */
 function bql_font(array $b, bool $bold): string
 {
+    $bundled = __DIR__ . '/../assets/fonts/' . ($bold ? 'DejaVuSans-Bold.ttf' : 'DejaVuSans.ttf');
     $candidates = array_filter([
         $bold ? $b['font_bold'] : $b['font_regular'],
         $bold ? 'C:/Windows/Fonts/arialbd.ttf' : 'C:/Windows/Fonts/arial.ttf',
-        $bold ? 'C:/Windows/Fonts/segoeuib.ttf' : 'C:/Windows/Fonts/segoeui.ttf',
-        $bold ? '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' : '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        $bold ? '/System/Library/Fonts/Supplemental/Arial Bold.ttf' : '/System/Library/Fonts/Supplemental/Arial.ttf',
+        $bundled,
     ]);
     foreach ($candidates as $f) {
-        if (is_file($f)) {
+        if (@is_file($f) && @is_readable($f)) {
             return $f;
         }
     }
-    throw new RuntimeException('Font TrueType tidak ditemukan untuk mencetak ke Brother. Isi print.brother.font_regular / font_bold di config.php.');
+    throw new RuntimeException('Font untuk cetak Brother tidak ditemukan. Pastikan folder assets/fonts/ ikut ter-upload '
+        . '(DejaVuSans.ttf & DejaVuSans-Bold.ttf), atau isi print.brother.font_regular / font_bold di config.php. '
+        . 'Dicari: ' . implode(', ', $candidates));
 }
 
 /* ------------------------------------------------------------------
