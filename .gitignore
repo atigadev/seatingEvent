@@ -1,0 +1,23 @@
+# ------------------------------------------------------------
+# Data runtime — JANGAN di-commit
+#   storage/settings.json   : pengaturan perangkat + hash password admin
+#   storage/print-log.csv   : data peserta (nama, instansi, nomor meja)
+#   storage/venue/          : denah tayang, draf & riwayat
+#   uploads/venue/          : gambar denah yang diunggah
+# ------------------------------------------------------------
+storage/*
+!storage/.htaccess
+uploads/*
+!uploads/.htaccess
+
+# Hasil tools/setup-https.ps1 (mkcert & sertifikat lokal)
+tools/bin/
+cert/
+
+# Sisa sistem / editor
+*.tmp
+*.bak-*
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/

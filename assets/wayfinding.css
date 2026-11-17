@@ -1,0 +1,81 @@
+/* Wayfinding — gaya rute mengikuti Satumap */
+.wf-map {
+  --route: #0a84ff;
+  --route-strong: #0060df;
+  --route-glow: rgba(10, 132, 255, .35);
+  --wf-accent: #e5322b;
+  --wf-ok: #30d158;
+  position: relative; overflow: hidden;
+  background: #eef2f7; border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
+}
+.wf-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.wf-stage img { position: absolute; left: 0; top: 0; user-select: none; pointer-events: none; }
+.wf-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.wf-movers { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+
+.wf-dim { fill: rgba(12, 18, 36, .22); animation: wf-fade .5s ease-out both; }
+.wf-target { fill: rgba(48, 209, 88, .22); stroke: var(--wf-ok); stroke-width: calc(3px * var(--inv, 1)); animation: wf-glow 1.4s ease-in-out infinite; }
+
+.wf-route-shadow, .wf-route-line, .wf-route-ants { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.wf-route-shadow { stroke: var(--route-glow); stroke-width: calc(14px * var(--inv, 1)); opacity: 0; }
+.wf-route-line { stroke: var(--route); stroke-width: calc(6px * var(--inv, 1)); }
+.wf-route-ants { stroke: #fff; stroke-width: calc(2.2px * var(--inv, 1)); stroke-dasharray: 2 12; opacity: 0; }
+.wf-routing .wf-route-line { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: wf-draw var(--draw) cubic-bezier(.6, .05, .3, 1) forwards; }
+.wf-routing .wf-route-shadow { animation: wf-fade .4s var(--draw) forwards; }
+.wf-routing .wf-route-ants { animation: wf-fade .4s var(--draw) forwards, wf-march .7s linear infinite; }
+
+.wf-chevs { opacity: 0; }
+.wf-routing .wf-chevs { animation: wf-fade .4s var(--draw) forwards; }
+.wf-chev, .wf-walker { position: absolute; top: 0; left: 0; width: 0; height: 0; offset-distance: 0%; }
+.wf-chev { offset-rotate: auto; animation: wf-walk var(--walk) linear infinite; }
+.wf-chev i { position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; background: #fff; clip-path: polygon(0 0, 55% 0, 100% 50%, 55% 100%, 0 100%, 45% 50%); filter: drop-shadow(0 0 2px var(--route)); transform: scale(var(--inv, 1)); }
+.wf-walker { offset-rotate: 0deg; animation: wf-walk-once calc(var(--walk) * 1.25) ease-in-out infinite; }
+.wf-walker i { position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; border-radius: 50%; background: var(--wf-accent); border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(229, 50, 43, .35), 0 2px 6px rgba(0, 0, 0, .4); transform: scale(var(--inv, 1)); }
+
+.wf-start { position: absolute; width: 0; height: 0; scale: var(--inv, 1); }
+.wf-start .dot, .wf-start .ring { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+.wf-start .dot { width: 18px; height: 18px; background: var(--route); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+.wf-start .ring { width: 18px; height: 18px; background: var(--route); animation: wf-ripple 2s ease-out infinite; }
+.wf-start .ring.r2 { animation-delay: 1s; }
+.wf-start .lbl { position: absolute; left: 16px; top: -13px; white-space: nowrap; padding: 3px 9px; border-radius: 7px; background: var(--route-strong); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); text-shadow: none; }
+.wf-start .cone { position: absolute; left: 0; top: 0; width: 90px; height: 90px; transform: translate(-50%, -100%) rotate(var(--hd)); transform-origin: 50% 100%; background: radial-gradient(circle at 50% 100%, rgba(10, 132, 255, .55), rgba(10, 132, 255, 0) 70%); clip-path: polygon(50% 100%, 12% 0, 88% 0); }
+
+.wf-lm { position: absolute; width: 0; height: 0; }
+.wf-lm span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) scale(var(--inv, 1)); padding: 2px 8px; border-radius: 6px; background: #fff; color: #0f1424; border: 2px solid var(--route); font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); text-shadow: none; animation: wf-fade .4s var(--draw) both; }
+
+.wf-pin { position: absolute; width: 0; height: 0; scale: var(--inv, 1); opacity: 0; }
+.wf-pin-head { position: absolute; left: 0; bottom: 6px; display: grid; place-items: center; min-width: 38px; height: 38px; padding: 0 8px; transform: translateX(-50%); background: var(--wf-accent); color: #fff; font-weight: 800; font-size: 14px; white-space: nowrap; border: 3px solid #fff; border-radius: 19px; box-shadow: 0 4px 10px rgba(0, 0, 0, .35); text-shadow: none; }
+.wf-pin-head::after { content: ""; position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); border: 7px solid transparent; border-top: 8px solid #fff; }
+.wf-pin-shadow { position: absolute; left: 0; top: 0; width: 18px; height: 6px; border-radius: 50%; background: rgba(0, 0, 0, .35); transform: translate(-50%, -50%); }
+.wf-routing .wf-pin { animation: wf-drop .55s cubic-bezier(.3, 1.6, .5, 1) var(--draw) forwards; }
+.wf-routing .wf-pin-head { animation: wf-bounce 1.4s ease-in-out calc(var(--draw) + .6s) infinite; }
+.wf-routing .wf-pin-shadow { animation: wf-shadow 1.4s ease-in-out calc(var(--draw) + .6s) infinite; }
+
+@keyframes wf-draw   { to { stroke-dashoffset: 0; } }
+@keyframes wf-fade   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wf-march  { to { stroke-dashoffset: -14; } }
+@keyframes wf-glow   { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
+@keyframes wf-walk   { 0% { offset-distance: 0%; opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+@keyframes wf-walk-once { 0% { offset-distance: 0%; transform: scale(.6); } 10% { transform: scale(1); } 80% { offset-distance: 100%; transform: scale(1); } 90% { offset-distance: 100%; transform: scale(1.4); } 100% { offset-distance: 100%; transform: scale(0); } }
+@keyframes wf-ripple { from { transform: translate(-50%, -50%) scale(1); opacity: .6; } to { transform: translate(-50%, -50%) scale(4); opacity: 0; } }
+@keyframes wf-drop   { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes wf-bounce { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -8px); } }
+@keyframes wf-shadow { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(.6); opacity: .5; } }
+
+/* daftar petunjuk */
+.wf-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; text-align: left; }
+.wf-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 18px; line-height: 1.35; opacity: 0; animation: wf-step .35s ease-out forwards; animation-delay: calc(.9s + var(--i) * .12s); }
+.wf-steps li .n { flex: 0 0 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: rgba(255, 255, 255, .15); }
+.wf-steps li.finish .n { background: #30d158; color: #062; }
+.wf-steps li.start .n { background: #0a84ff; }
+.wf-steps b { color: #f2b33d; }
+@keyframes wf-step { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wf-routing .wf-route-line { animation: none; stroke-dasharray: none; }
+  .wf-routing .wf-route-shadow, .wf-routing .wf-route-ants, .wf-routing .wf-chevs, .wf-routing .wf-pin, .wf-lm span { animation: none; opacity: 1; }
+  .wf-chev, .wf-walker, .wf-target, .wf-start .ring, .wf-routing .wf-pin-head, .wf-routing .wf-pin-shadow { animation: none; }
+  .wf-chev { display: none; }
+  .wf-steps li { animation: none; opacity: 1; }
+}

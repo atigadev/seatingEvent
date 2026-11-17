@@ -1,0 +1,5 @@
+# Folder upload hanya untuk gambar — jangan pernah menjalankan skrip
+<FilesMatch "\.(php\d?|phtml|phar|pl|py|cgi|sh|asp|aspx|jsp|html?|svg)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes
