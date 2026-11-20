@@ -25,7 +25,8 @@ if (!is_file($cfgFile)) {
     fwrite(STDERR, "Config tidak ditemukan: $cfgFile\nSalin agent-config.example.php menjadi agent-config.php lalu isi.\n");
     exit(1);
 }
-$cfg = (require $cfgFile) + ['name' => gethostname() ?: 'Agen', 'verify_ssl' => true, 'wait' => 15];
+$cfg = (require $cfgFile) + ['name' => gethostname() ?: 'Agen', 'verify_ssl' => true, 'wait' => 15, 'station' => ''];
+$cfg['station'] = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', (string) $cfg['station']), '-'));
 foreach (['server', 'token', 'printer'] as $k) {
     if (empty($cfg[$k]) || strpos((string) $cfg[$k], 'ISI-') === 0) {
         fwrite(STDERR, "Isi '$k' di $cfgFile terlebih dahulu.\n");
@@ -51,6 +52,7 @@ function call(string $url, array $cfg, ?array $post = null, int $timeout = 30): 
         CURLOPT_USERAGENT      => 'SeatPrintAgent/' . AGENT_VERSION,
         CURLOPT_HTTPHEADER     => [
             'X-Agent-Token: ' . $cfg['token'],
+            'X-Agent-Station: ' . $cfg['station'],
             'X-Agent-Name: ' . $cfg['name'],
             'X-Agent-Printer: ' . $cfg['printer'],
             'X-Agent-Version: ' . AGENT_VERSION,
@@ -85,6 +87,7 @@ echo "==============================================\n";
 echo " Seat Kiosk — Print Agent v" . AGENT_VERSION . "\n";
 echo " Server : $server\n";
 echo " Printer: $printer\n";
+echo " Stasiun: " . ($cfg['station'] !== '' ? $cfg['station'] : '(semua — tanpa stasiun)') . "\n";
 echo " Nama   : {$cfg['name']}\n";
 echo "==============================================\n";
 
@@ -124,7 +127,8 @@ while (true) {
             }
             escpos_send($printer, $bytes);
             $ok = true;
-            logline(sprintf('✓ Tercetak  %s  (%s KB, %.1f dtk)', $job['label'] ?? $job['id'], number_format(strlen($bytes) / 1024, 0), microtime(true) - $t0));
+            $from = (!empty($job['station']) && $job['station'] !== $cfg['station']) ? '  [dialihkan dari stasiun ' . $job['station'] . ']' : '';
+            logline(sprintf('✓ Tercetak  %s  (%s KB, %.1f dtk)%s', $job['label'] ?? $job['id'], number_format(strlen($bytes) / 1024, 0), microtime(true) - $t0, $from));
         } catch (Throwable $e) {
             $error = $e->getMessage();
             logline('✗ Gagal cetak ' . ($job['label'] ?? $job['id']) . ': ' . $error);

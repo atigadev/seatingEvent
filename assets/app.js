@@ -125,7 +125,7 @@
     setState('loading');
 
     try {
-      const body = new URLSearchParams({ qr: code });
+      const body = new URLSearchParams({ qr: code, station: window.Station ? Station.get() : '' });
       const res = await fetch(C.lookupUrl, { method: 'POST', body, cache: 'no-store' });
       const json = await res.json().catch(() => ({ ok: false, message: 'Respons server tidak valid.' }));
       if (json.inactive) { applyStatus({ scan_active: false }); setState(idleState()); return; } // dihentikan dari Pengaturan
@@ -147,6 +147,12 @@
           $('r-status').textContent = 'Mengirim ke printer…';
           const r = await waitJob(json.job_id);
           if (r.status !== 'done') return printFailed(r.error || 'Printer tidak merespons.');
+          if (r.rerouted && r.station) {
+            // printer stasiun ini mati → tiket keluar di stasiun lain
+            $('r-status').textContent = 'Silakan ambil tiket Anda di printer stasiun ' + r.station.toUpperCase();
+            scheduleReset(holdSeconds() + 4);
+            return;
+          }
         }
       } else if (json.print_mode === 'bluetooth' || json.print_mode === 'brother') {
         // server sudah mencetak (ESC/POS via COM/LAN, atau Brother QL via Bluetooth/Wi-Fi)
@@ -367,7 +373,12 @@
 
   /* ---------- Saklar scan & teks standby (dipantau dari server) ---------- */
   let cameraWasOn = false;
+  // pilihan stasiun cetak (mode Print Agent)
+  const stationSel = $('station-sel');
+  if (window.Station && stationSel) Station.bind(stationSel, () => focusInput());
+
   function applyStatus(s) {
+    if (window.Station && stationSel && Array.isArray(s.stations)) Station.fill(stationSel, s.stations);
     if (s.standby) {
       $('sb-title').textContent = s.standby.title || '';
       $('sb-sub').textContent = s.standby.subtitle || '';

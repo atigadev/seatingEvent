@@ -67,6 +67,19 @@ Lupa password? Hapus baris `admin_pin_hash` di `storage/settings.json` → kemba
 Kamera tidak menyala otomatis; default memakai scanner QR. Tombol *Kamera* ada di menu bawah
 (`config.php` → `kiosk.camera_autostart` untuk mengubah).
 
+## Halaman Seating Arrangement (`seating.php`)
+Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap seperti semula).
+- Scan QR → **Nomor Meja, Nama, Jabatan, Instansi** tampil di panel kiri; meja di denah ditandai cincin pink
+  **berkelap-kelip** + label "MEJA xx".
+- Cetak hanya saat tombol **PRINT** ditekan (`api/print.php`, data diambil ulang dari server registrasi),
+  mengikuti mode printer di Pengaturan (Kabel USB, Bluetooth, Brother QL, Print Agent).
+- Nomor dari registrasi dicocokkan otomatis ke denah: `40`/`040` → 40, `23A`/`09D` → 23/9, `A01`/`A-1` → A1.
+- Data kembali ke layar awal setelah 60 dtk (`kiosk.seating_display_seconds`); scan berikutnya langsung menggantikan.
+- Buka Pengaturan: **ketuk logo Bank Indonesia 3×**. Mode kiosk: `start-seating.bat`.
+- Background: `assets/img/seating-bg.jpg` (data contoh pada gambar asli sudah dihapus).
+  Posisi 83 meja: `assets/seating-tables.json` (piksel pada gambar 1920×1200) — perbarui bila denah berubah.
+- Uji tampilan tanpa scan: `seating.php?demo=40`.
+
 ## Denah & Wayfinding (logika Satumap)
 Pengaturan › **Buka Editor Denah** (`admin-denah.php`). Setelah scan, kiosk menampilkan nomor kursi
 **beserta rute terdekat** dari kiosk ke meja peserta + petunjuk langkah ("Jalan ± 7 m, lalu belok kiri dekat B").
@@ -166,6 +179,16 @@ kiosk/iPad/Android ──HTTPS──▶ hosting (antrean storage/queue/)
    Status agen (ONLINE/OFFLINE) tampil di Pengaturan → **Simpan & Test Cetak**.
 
 - Kiosk menampilkan "Mengirim ke printer… → Silakan ambil tiket", atau pesan gagal bila agen/printer bermasalah.
+
+### Stasiun cetak — banyak tablet & banyak printer
+- Satu agen = satu printer = satu **stasiun** (`'station' => 'pintu-utara'` di `agent-config*.php`).
+  Satu PC bisa melayani beberapa printer: `agent-config.php`, `agent-config-2.php`, … lalu `agent\start-agents.bat`.
+- Setiap tablet/kiosk memilih stasiun di **menu bawah layar** (disimpan di perangkat) atau lewat `?station=pintu-utara`.
+  Tiket dari tablet itu hanya keluar di printer stasiunnya.
+- **Pengalihan** (Pengaturan › Print Agent, default aktif): bila agen stasiun offline, tiket dicetak di stasiun lain
+  yang online (antrean paling sedikit) dan layar menampilkan "Silakan ambil tiket di printer stasiun X".
+- Tabel status semua agen (ONLINE/OFFLINE, printer, antrean) dan *Test Cetak* per stasiun ada di Pengaturan.
+- Tablet/agen tanpa stasiun tetap bekerja seperti sebelumnya (agen tanpa stasiun mencetak semua tiket).
 - Job yang tidak diambil agen dalam 90 dtk (`print.agent.job_ttl`) **dibatalkan** — tidak tercetak belakangan.
 - Data cetak dihapus dari server segera setelah tercetak; riwayat job dibersihkan otomatis.
 - `agent/agent-config.php` berisi token → tidak di-commit (.gitignore). Ganti token kapan saja dari Pengaturan.

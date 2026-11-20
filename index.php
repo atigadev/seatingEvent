@@ -40,7 +40,7 @@ $jsConfig = [
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 
-<link rel="stylesheet" href="assets/style.css?v=10">
+<link rel="stylesheet" href="assets/style.css?v=11">
 <link rel="stylesheet" href="assets/wayfinding.css?v=1">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
@@ -141,6 +141,7 @@ $jsConfig = [
       <span class="printer-mode" title="Mode printer">Printer: <?= e(print_mode_label($cfg)) ?></span>
     <?php endif; ?>
     <select id="kiosk-loc" class="btn-ghost" title="Lokasi kiosk ini di denah" hidden></select>
+    <select id="station-sel" class="btn-ghost station-sel" title="Stasiun cetak (printer terdekat)" hidden></select>
     <a href="settings.php" class="btn-ghost btn-icon" title="Pengaturan" aria-label="Pengaturan">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </a>
@@ -169,9 +170,10 @@ $jsConfig = [
 <?php if ($cfg['print']['mode'] === 'webbluetooth'): ?>
 <script src="assets/bt-printer.js?v=1"></script>
 <?php endif; ?>
+<script src="assets/station.js?v=1"></script>
 <script src="assets/router.js?v=1"></script>
 <script src="assets/wayfinding.js?v=2"></script>
-<script src="assets/app.js?v=13"></script>
+<script src="assets/app.js?v=14"></script>
 <script>
   // PWA: daftarkan service worker (hanya aktif di https atau localhost)
   if ('serviceWorker' in navigator && window.isSecureContext) {

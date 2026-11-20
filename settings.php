@@ -161,7 +161,10 @@ if ($authed && $action !== '') {
             $br = ['port' => $brPort, 'media' => 'DK-22205', 'cut' => !empty($_POST['br_cut'])];
             $patch = ['mode' => $mode, 'brother' => $br];
             if (isset($_POST['agent_printer_type'])) {
-                $patch['agent'] = ['printer_type' => $_POST['agent_printer_type'] === 'escpos' ? 'escpos' : 'brother'];
+                $patch['agent'] = [
+                    'printer_type' => $_POST['agent_printer_type'] === 'escpos' ? 'escpos' : 'brother',
+                    'failover'     => !empty($_POST['agent_failover']),
+                ];
             }
             if ($mode === 'agent') {
                 unset($patch['brother']); // isian port Brother tidak dipakai di mode agen
@@ -181,12 +184,14 @@ if ($authed && $action !== '') {
                     if ((string) (agent_cfg()['token'] ?? '') === '') {
                         throw new RuntimeException('Buat token agen terlebih dahulu.');
                     }
-                    $sample = ['id' => 'TEST-0000', 'kursi' => 'A01', 'nama' => 'Test Cetak Print Agent', 'jabatan' => '', 'instansi' => 'Instansi Contoh'];
-                    $jid = queue_add($sample);
-                    $st = agent_state();
-                    flash('Test cetak masuk antrean (job ' . $jid . '). '
-                        . (!empty($st['online']) ? 'Agen online — label akan keluar dalam beberapa detik.' : 'Agen BELUM online — jalankan agent\\start-agent.bat di PC venue (job dibatalkan otomatis setelah ' . (int) agent_cfg()['job_ttl'] . ' detik).'),
-                        !empty($st['online']) ? 'ok' : 'err');
+                    $testStation = station_slug((string) ($_POST['agent_test_station'] ?? ''));
+                    $sample = ['id' => 'TEST-0000', 'kursi' => 'A01', 'nama' => 'Test Cetak ' . ($testStation !== '' ? 'Stasiun ' . $testStation : 'Print Agent'), 'jabatan' => '', 'instansi' => 'Instansi Contoh'];
+                    $job = queue_add($sample, null, $testStation);
+                    $online = $job['station'] !== '' ? agent_station_online($job['station']) : (bool) array_filter(agent_states(), function ($s) { return $s['online']; });
+                    $where = $job['station'] !== '' ? 'stasiun ' . $job['station'] : 'agen mana pun';
+                    flash('Test cetak masuk antrean untuk ' . $where . ($job['rerouted'] ? ' (dialihkan — stasiun ' . $testStation . ' offline)' : '') . '. '
+                        . ($online ? 'Agen online — label akan keluar dalam beberapa detik.' : 'Agen BELUM online — jalankan agent\\start-agents.bat di PC venue (job dibatalkan otomatis setelah ' . (int) agent_cfg()['job_ttl'] . ' detik).'),
+                        $online ? 'ok' : 'err');
                 } catch (Throwable $ex) {
                     flash($ex->getMessage(), 'err');
                 }
@@ -534,31 +539,54 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
     <?php
       require_once __DIR__ . '/lib/agent.php';
       $ag = agent_cfg($cfg);
-      $agState = agent_state();
+      $agents = agent_states();
       $serverUrl = app_base_url();
     ?>
     <div id="agent-panel">
       <div class="row">
         <div>
-          <label class="f" for="agent_printer_type">Printer di venue</label>
+          <label class="f" for="agent_printer_type">Jenis printer di venue (semua stasiun)</label>
           <select id="agent_printer_type" name="agent_printer_type">
             <option value="brother" <?= $ag['printer_type'] !== 'escpos' ? 'selected' : '' ?>>Brother QL-820NWB · DK-22205 62 mm</option>
             <option value="escpos" <?= $ag['printer_type'] === 'escpos' ? 'selected' : '' ?>>Printer thermal struk (ESC/POS)</option>
           </select>
         </div>
         <div>
-          <label class="f">Status agen</label>
-          <?php if (!$agState): ?>
-            <div class="small" style="padding:12px 0;color:#ffd58a">Belum pernah terhubung</div>
-          <?php else: ?>
-            <div class="small" style="padding:8px 0;line-height:1.5">
-              <b style="color:<?= $agState['online'] ? 'var(--ok)' : 'var(--err)' ?>"><?= $agState['online'] ? '● ONLINE' : '● OFFLINE' ?></b>
-              · <?= e($agState['name'] ?? '') ?><br>
-              Printer: <?= e($agState['printer'] ?? '-') ?> · Antre: <?= (int) $agState['pending'] ?><br>
-              <span style="color:var(--muted)">Terakhir: <?= e(date('d/m H:i:s', (int) $agState['last_seen'])) ?></span>
-            </div>
-          <?php endif; ?>
+          <label class="check"><input type="checkbox" name="agent_failover" value="1" <?= !empty($ag['failover']) ? 'checked' : '' ?>>
+            Alihkan ke stasiun lain bila printer stasiun mati</label>
         </div>
+      </div>
+
+      <label class="f">Stasiun cetak &amp; agen</label>
+      <?php if (!$agents): ?>
+        <div class="small" style="padding:10px 0;color:#ffd58a">Belum ada agen yang terhubung.</div>
+      <?php else: ?>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr style="color:var(--muted);text-align:left"><th style="padding:6px 8px 6px 0">Status</th><th>Stasiun</th><th>Agen</th><th>Printer</th><th>Antre</th><th>Terakhir</th></tr>
+          <?php foreach ($agents as $a): ?>
+            <tr style="border-top:1px solid rgba(255,255,255,.1)">
+              <td style="padding:7px 8px 7px 0"><b style="color:<?= $a['online'] ? 'var(--ok)' : 'var(--err)' ?>"><?= $a['online'] ? '● ONLINE' : '● OFFLINE' ?></b></td>
+              <td><b><?= e(($a['station'] ?? '') !== '' ? $a['station'] : '(semua)') ?></b></td>
+              <td><?= e($a['name'] ?? '') ?></td>
+              <td><?= e($a['printer'] ?? '-') ?></td>
+              <td><?= (int) $a['pending'] ?></td>
+              <td style="color:var(--muted)"><?= e(date('d/m H:i:s', (int) $a['last_seen'])) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </table>
+      <?php endif; ?>
+      <?php $stList = agent_station_list(); ?>
+      <div class="row" style="margin-top:4px">
+        <div>
+          <label class="f" for="agent_test_station">Test cetak ke stasiun</label>
+          <select id="agent_test_station" name="agent_test_station">
+            <option value="">(agen mana pun)</option>
+            <?php foreach ($stList as $s): ?>
+              <option value="<?= e($s['station']) ?>"><?= e($s['station']) ?><?= $s['online'] ? '' : ' (offline)' ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div></div>
       </div>
       <label class="f">Token agen</label>
       <div class="row" style="align-items:center">
@@ -571,12 +599,17 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         <strong>Pasang agen di PC venue</strong> (PC yang satu Wi-Fi dengan printer, mis. PC kiosk; butuh PHP — XAMPP cukup):
         <ol>
           <li>Salin folder aplikasi ini (atau <code>git clone</code>) ke PC venue.</li>
-          <li>Salin <code>agent\agent-config.example.php</code> menjadi <code>agent\agent-config.php</code>, lalu isi:
+          <li>Untuk <b>setiap printer</b>, salin <code>agent\agent-config.example.php</code> menjadi
+              <code>agent\agent-config.php</code>, <code>agent\agent-config-2.php</code>, dst., lalu isi:
 <pre style="white-space:pre-wrap;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin:8px 0">'server'  => '<?= e($serverUrl) ?>',
 'token'   => '<?= e($ag['token'] ?: 'BUAT-TOKEN-DULU') ?>',
+'station' => 'pintu-utara',     // nama stasiun printer ini (beda per printer)
 'printer' => '172.16.16.192',   // IP printer (port 9100) atau COM Bluetooth</pre></li>
-          <li>Jalankan <code>agent\start-agent.bat</code> — biarkan jendela tetap terbuka selama acara.</li>
-          <li>Status di atas berubah <b>ONLINE</b>, lalu klik <b>Simpan &amp; Test Cetak</b>.</li>
+          <li>Jalankan <code>agent\start-agents.bat</code> — satu jendela per printer; biarkan terbuka selama acara.
+              (Satu PC bisa melayani beberapa printer.)</li>
+          <li>Di setiap tablet/kiosk: buka menu bawah layar → pilih <b>Stasiun</b> yang sama dengan printer terdekat
+              (atau buka alamat dengan <code>?station=pintu-utara</code>).</li>
+          <li>Agen tampil <b>ONLINE</b> di tabel di atas, lalu klik <b>Simpan &amp; Test Cetak</b> per stasiun.</li>
         </ol>
         Agen hanya membuat koneksi keluar (HTTPS) ke server — printer tidak dibuka ke internet.
         Tiket yang tidak diambil agen dalam <?= (int) $ag['job_ttl'] ?> detik dibatalkan (tidak tercetak belakangan).

@@ -22,5 +22,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Config Print Agent (berisi token rahasia)
-agent/agent-config.php
+# Config Print Agent (berisi token rahasia) — satu file per printer
+agent/agent-config*.php
+!agent/agent-config.example.php

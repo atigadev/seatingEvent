@@ -286,6 +286,57 @@ function api_fetch_participant(string $url, string $id): array
  */
 function parse_html_participant(string $html): array
 {
+    // 1) Utama: elemen ber-id, mis. <span id="nama">…</span> <span id="jabatan">…</span>
+    //    <span id="instansi">…</span> <span id="nomeja">40D</span>   (format registrasi PTBI terbaru)
+    $byId = parse_html_by_id($html);
+
+    // 2) Cadangan: label teks (NAMA / JABATAN / INSTANSI / NO MEJA) — format lama
+    try {
+        $byLabel = parse_html_by_label($html);
+    } catch (RuntimeException $e) {
+        if ($byId['nama'] === '' && $byId['kursi'] === '') {
+            throw $e; // tidak ada data sama sekali (mis. "Data undangan tidak ditemukan.")
+        }
+        $byLabel = [];
+    }
+    foreach ($byId as $k => $v) {
+        if ($v === '' && !empty($byLabel[$k])) {
+            $byId[$k] = $byLabel[$k];
+        }
+    }
+    return $byId;
+}
+
+/** Ambil isi elemen berdasarkan atribut id (nama, jabatan, instansi, nomeja, …) */
+function parse_html_by_id(string $html): array
+{
+    $ids = [
+        'nama'     => ['nama', 'name', 'nama_lengkap', 'namapeserta', 'nama_peserta', 'fullname'],
+        'jabatan'  => ['jabatan', 'position', 'title', 'posisi', 'job_title'],
+        'instansi' => ['instansi', 'institution', 'company', 'organisasi', 'organization', 'perusahaan', 'lembaga'],
+        'kursi'    => ['nomeja', 'no_meja', 'nomor_meja', 'meja', 'nokursi', 'no_kursi', 'nomor_kursi', 'kursi', 'seat', 'table'],
+        'id'       => ['kode', 'id_peserta', 'kode_peserta', 'barcode'],
+    ];
+    $out = ['id' => '', 'nama' => '', 'jabatan' => '', 'instansi' => '', 'kursi' => ''];
+    if (!preg_match_all('#<([a-z][a-z0-9]*)\b[^>]*?\bid\s*=\s*["\']?([\w\-]+)["\']?[^>]*>(.*?)</\1\s*>#is', $html, $m, PREG_SET_ORDER)) {
+        return $out;
+    }
+    foreach ($m as $el) {
+        $id = strtolower($el[2]);
+        $text = trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($el[3]), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        if ($text === '') continue;
+        foreach ($ids as $field => $names) {
+            if ($out[$field] === '' && in_array($id, $names, true)) {
+                $out[$field] = $text;
+            }
+        }
+    }
+    return $out;
+}
+
+/** Format lama: teks label diikuti nilai (NAMA → nama → instansi, NO MEJA → nomor) */
+function parse_html_by_label(string $html): array
+{
     // buang skrip/gaya, jadikan setiap tag blok/span/<br> sebagai pemisah baris, lalu ambil teks per baris
     $html = (string) preg_replace('#<(script|style|head)\b.*?</\1>#is', '', $html);
     $html = (string) preg_replace('#<(br|/?(span|div|p|td|th|tr|li|h\d|table|label))\b[^>]*>#i', "\n", $html);

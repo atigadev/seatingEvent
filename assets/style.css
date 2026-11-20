@@ -144,8 +144,8 @@ h1 { font-size: 40px; margin: 24px 0 8px; font-weight: 600; }
 @media (orientation: portrait) {
   .state-success .panel-success.has-map { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 20px; padding-top: calc(var(--hero) - 30px); }
 }
-#kiosk-loc { padding: 9px 10px; max-width: 220px; }
-#kiosk-loc option { color: #000; }
+#kiosk-loc, .station-sel { padding: 9px 10px; max-width: 240px; }
+#kiosk-loc option, .station-sel option { color: #000; }
 .bt-warning { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 28px; border-radius: 14px; background: rgba(229,72,77,.12); border: 1px solid rgba(229,72,77,.4); font-size: 20px; }
 .bt-connect { background: var(--accent); color: #1a1a1a; border: 0; border-radius: 10px; padding: 14px 28px; font-size: 20px; font-weight: 700; cursor: pointer; margin-top: 12px; }
 .bt-chip { display: inline-flex; align-items: center; gap: 8px; }

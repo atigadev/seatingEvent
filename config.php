@@ -70,6 +70,7 @@ return [
             'token'        => '',         // dibuat dari Pengaturan (disimpan di storage/settings.json)
             'printer_type' => 'brother',  // 'brother' (QL, DK-22205) atau 'escpos' (thermal struk)
             'job_ttl'      => 90,         // detik — job yang tidak diambil agen dibatalkan
+            'failover'     => true,       // agen stasiun offline → cetak di stasiun lain yang online
         ],
 
         // Brother QL-800/810W/820NWB (Brother Raster, bukan ESC/POS) — mode 'brother'
@@ -122,6 +123,7 @@ return [
         'result_display_seconds' => 4,   // lama tampil hasil sebelum kembali ke mode scan
         'wayfinding' => true,            // tampilkan rute ke meja (denah dari menu Denah & Wayfinding)
         'map_display_seconds' => 20,     // lama tampil hasil + rute (scan berikutnya langsung menggantikan)
+        'seating_display_seconds' => 60, // halaman seating.php: lama data tampil sebelum kembali ke awal
         'error_display_seconds'  => 4,
         'duplicate_cooldown_seconds' => 5, // abaikan scan QR yang sama dalam rentang ini
         'enable_camera' => true,         // izinkan scan via kamera (selain scanner USB)

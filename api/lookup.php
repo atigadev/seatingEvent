@@ -43,12 +43,19 @@ if (!empty($data['unassigned'])) {
     json_response(['ok' => true, 'data' => $data, 'unassigned' => true, 'print_mode' => $mode, 'printed' => null]);
 }
 
+// print=0 (halaman Seating Arrangement): hanya tampilkan data, cetak lewat tombol PRINT (api/print.php)
+if (($_POST['print'] ?? $_GET['print'] ?? '1') === '0') {
+    log_print($id, $data, 'SCAN');
+    json_response(['ok' => true, 'data' => $data, 'print_mode' => $mode, 'printed' => null, 'print_deferred' => true]);
+}
+
 // Print Agent: masukkan ke antrean, agen di venue yang mencetak (kiosk memantau status job)
 if ($mode === 'agent' && $cfg['print']['auto_print']) {
     try {
-        $jobId = queue_add($data);
-        $reprint = log_print($id, $data, 'ANTRE', 'job ' . $jobId);
-        json_response(['ok' => true, 'data' => $data, 'reprint' => $reprint, 'print_mode' => 'agent', 'job_id' => $jobId, 'printed' => null]);
+        $job = queue_add($data, null, (string) ($_POST['station'] ?? ''));
+        $reprint = log_print($id, $data, 'ANTRE', 'job ' . $job['id'] . ($job['station'] !== '' ? ' @' . $job['station'] : ''));
+        json_response(['ok' => true, 'data' => $data, 'reprint' => $reprint, 'print_mode' => 'agent', 'job_id' => $job['id'],
+                       'station' => $job['station'], 'rerouted' => $job['rerouted'], 'printed' => null]);
     } catch (Throwable $ex) {
         $reprint = log_print($id, $data, 'GAGAL CETAK', $ex->getMessage());
         json_response(['ok' => true, 'data' => $data, 'reprint' => $reprint, 'print_mode' => 'agent', 'printed' => false, 'print_error' => $ex->getMessage()]);
