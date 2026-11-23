@@ -160,6 +160,7 @@ h1 { font-size: 40px; margin: 24px 0 8px; font-weight: 600; }
 
 /* ===================== TIKET (hanya saat print) ===================== */
 #ticket { display: none; }
+#ticket-img { display: none; }
 
 @media print {
   html, body { background: #fff !important; color: #000; height: auto; overflow: visible; }

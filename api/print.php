@@ -43,11 +43,15 @@ if (!empty($data['unassigned'])) {
 }
 
 $mode = $cfg['print']['mode'];
+$data = ticket_prepare($data);   // nomor antrian (bila Desain Tiket memakainya)
 $out = ['ok' => true, 'data' => $data, 'print_mode' => $mode, 'printed' => null, 'print_error' => ''];
 try {
     switch ($mode) {
+        case 'cable':
+            $out['ticket'] = ticket_for_browser($data, $cfg);   // gambar tiket sesuai Desain Tiket
+            break;
         case 'webbluetooth':
-            $out['escpos'] = base64_encode(str_repeat(escpos_build_ticket($data, $cfg), max(1, (int) $cfg['print']['copies'])));
+            $out['escpos'] = base64_encode(str_repeat(escpos_build_ticket($data, $cfg, 'text'), max(1, (int) $cfg['print']['copies'])));
             break;
         case 'bluetooth':
             escpos_print_ticket($data);

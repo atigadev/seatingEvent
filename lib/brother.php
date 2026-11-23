@@ -88,93 +88,15 @@ function bql_wrap(string $font, float $size, string $text, int $maxW): array
 }
 
 /**
- * Gambar tiket untuk Brother → resource/objek GD (lebar = area cetak media, tinggi menyesuaikan isi)
+ * Gambar tiket untuk Brother sesuai Desain Tiket (admin-tiket.php),
+ * dengan lebar area cetak media Brother (DK-22205: 696 titik @300 dpi).
  */
 function bql_render_ticket(array $d, ?array $cfg = null)
 {
+    require_once __DIR__ . '/ticket.php';
     $cfg = $cfg ?? app_config();
-    $b = bql_cfg($cfg);
-    $media = BQL_MEDIA[$b['media']] ?? BQL_MEDIA['DK-22205'];
-    $W = $media['printable'];
-    $pad = 18;
-    $inner = $W - 2 * $pad;
-    $reg = bql_font($b, false);
-    $bold = bql_font($b, true);
-
-    $im = imagecreatetruecolor($W, 2400);
-    $white = imagecolorallocate($im, 255, 255, 255);
-    $black = imagecolorallocate($im, 0, 0, 0);
-    imagefilledrectangle($im, 0, 0, $W, 2400, $white);
-    $y = 24;
-
-    // tulis satu baris rata tengah; $y = batas atas baris, kembalikan batas bawah
-    $center = function (string $text, string $font, float $size, int $gapAfter = 10) use ($im, $black, $W, &$y): void {
-        $box = imagettfbbox($size, 0, $font, 'ÁgjpqyX' . $text);
-        $ascent = abs($box[7]);
-        $height = abs($box[1]) + $ascent;
-        $w = bql_text_width($font, $size, $text);
-        imagettftext($im, $size, 0, (int) (($W - $w) / 2), $y + $ascent, $black, $font, $text);
-        $y += $height + $gapAfter;
-    };
-    $dash = function (int $gap = 16) use ($im, $black, $W, $pad, &$y): void {
-        $y += $gap;
-        for ($x = $pad; $x < $W - $pad; $x += 22) {
-            imagefilledrectangle($im, $x, $y, min($x + 12, $W - $pad), $y + 3, $black);
-        }
-        $y += 4 + $gap;
-    };
-
-    // judul acara
-    $event = (string) $cfg['event_name'];
-    $center($event, $bold, bql_fit($bold, 34, 18, $event, $inner), 4);
-    if (!empty($cfg['event_sub'])) {
-        $center((string) $cfg['event_sub'], $reg, bql_fit($reg, 20, 12, (string) $cfg['event_sub'], $inner), 0);
-    }
-    $dash();
-
-    // nomor meja (besar)
-    $label = mb_strtoupper((string) ($cfg['kiosk']['seat_label'] ?? 'Nomor Kursi'));
-    $center($label, $bold, 22, 6);
-    $seat = (string) ($d['kursi'] ?? '-');
-    $center($seat, $bold, bql_fit($bold, 130, 40, $seat, $inner), 4);
-    $dash();
-
-    // nama (maks 3 baris, huruf mengecil bila panjang)
-    $name = (string) ($d['nama'] ?? '');
-    if ($name !== '') {
-        $size = 34;
-        do {
-            $lines = bql_wrap($bold, $size, $name, $inner);
-            $size -= 2;
-        } while (count($lines) > 3 && $size > 18);
-        foreach ($lines as $l) {
-            $center($l, $bold, $size + 2, 4);
-        }
-        $y += 6;
-    }
-    foreach (['jabatan' => [$reg, 22], 'instansi' => [$bold, 24]] as $k => [$font, $size]) {
-        $t = trim((string) ($d[$k] ?? ''));
-        if ($t === '') continue;
-        foreach (bql_wrap($font, $size, $t, $inner) as $l) {
-            $center($l, $font, $size, 4);
-        }
-    }
-
-    // footer: ID kiri, waktu kanan
-    $y += 14;
-    $foot = 16;
-    $id = (string) ($d['id'] ?? '');
-    $time = date('d/m/Y H:i');
-    $box = imagettfbbox($foot, 0, $reg, 'Ag');
-    imagettftext($im, $foot, 0, $pad, $y + abs($box[7]), $black, $reg, $id);
-    imagettftext($im, $foot, 0, $W - $pad - bql_text_width($reg, $foot, $time), $y + abs($box[7]), $black, $reg, $time);
-    $y += abs($box[1]) + abs($box[7]) + 20;
-
-    // potong ke tinggi isi
-    $out = imagecreatetruecolor($W, $y);
-    imagecopy($out, $im, 0, 0, 0, 0, $W, $y);
-    imagedestroy($im);
-    return $out;
+    $media = BQL_MEDIA[bql_cfg($cfg)['media']] ?? BQL_MEDIA['DK-22205'];
+    return ticket_render($d, $cfg, null, ['width_px' => $media['printable'], 'dpi' => 300])['im'];
 }
 
 /* ------------------------------------------------------------------

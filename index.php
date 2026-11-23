@@ -40,7 +40,7 @@ $jsConfig = [
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 
-<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="stylesheet" href="assets/style.css?v=12">
 <link rel="stylesheet" href="assets/wayfinding.css?v=1">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
@@ -173,7 +173,8 @@ $jsConfig = [
 <script src="assets/station.js?v=1"></script>
 <script src="assets/router.js?v=1"></script>
 <script src="assets/wayfinding.js?v=2"></script>
-<script src="assets/app.js?v=14"></script>
+<script src="assets/ticket-print.js?v=1"></script>
+<script src="assets/app.js?v=16"></script>
 <script>
   // PWA: daftarkan service worker (hanya aktif di https atau localhost)
   if ('serviceWorker' in navigator && window.isSecureContext) {

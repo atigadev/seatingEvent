@@ -79,6 +79,14 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
 - Background: `assets/img/seating-bg.jpg` (data contoh pada gambar asli sudah dihapus).
   Posisi 83 meja: `assets/seating-tables.json` (piksel pada gambar 1920×1200) — perbarui bila denah berubah.
 - Uji tampilan tanpa scan: `seating.php?demo=40`.
+- **Video idle** (Pengaturan › Video Idle): video MP4/WebM tampil memenuhi frame denah setelah N detik tanpa scan,
+  diputar bergantian (1 video → diulang). Saat ada scan/sentuhan: disembunyikan & dijeda; saat idle lagi:
+  dilanjutkan dari posisi terakhir. Bisa diaktifkan/dimatikan, diurutkan, dihapus, dengan/tanpa suara;
+  perubahan berlaku di layar dalam ±5 detik. File di `uploads/videos/` (tidak di-commit, tidak di-cache PWA).
+  - **YouTube**: tempel tautan (watch, youtu.be, shorts, embed, live) → disimpan sebagai `yt:ID` dan bisa
+    dicampur dengan file unggahan dalam satu daftar putar. Diputar via YouTube IFrame API (youtube-nocookie),
+    tanpa kontrol, dipotong agar judul YouTube & bilah hitam tidak terlihat. Butuh internet di kiosk;
+    video yang tidak boleh di-embed / dihapus / offline dilewati otomatis.
 
 ## Denah & Wayfinding (logika Satumap)
 Pengaturan › **Buka Editor Denah** (`admin-denah.php`). Setelah scan, kiosk menampilkan nomor kursi
@@ -160,6 +168,19 @@ PWA, kamera, dan Bluetooth hanya jalan lewat HTTPS bila dibuka dari perangkat la
 
 > Mode printer berlaku untuk semua perangkat yang memakai server ini.
 > Service worker men-cache aset: setelah mengubah CSS/JS, naikkan `VERSION` di `sw.js`.
+
+## Desain Tiket (`admin-tiket.php`)
+Pengaturan › Printer › **Desain Tiket →**. Satu desain untuk semua printer — tiket digambar sesuai ukuran kertas lalu
+gambar yang sama dikirim ke Kabel USB (browser), thermal ESC/POS (raster), Brother QL, dan Print Agent.
+- **Ukuran kertas**: Thermal 80 mm, Thermal 58 mm, Brother DK-22205 62 mm, atau ukuran lain (lebar area cetak + dpi);
+  tinggi otomatis mengikuti isi atau tetap (mm); margin atas/bawah.
+- **Isi tiket** (urutan bebas): data peserta (nomor meja, nama, jabatan, instansi, ID, acara, tanggal), teks bebas,
+  **nomor antrian**, baris kiri–kanan, garis, jarak. Tiap elemen: ukuran huruf (pt), tebal, rata, huruf besar,
+  jarak huruf, maks. baris, perkecil agar 1 baris, awalan.
+- **Pratinjau langsung** dalam ukuran asli; hasil cetak identik dengan pratinjau.
+- **Nomor antrian**: bertambah 1 setiap tiket dicetak (hanya bila elemennya ditampilkan); bisa diatur ulang.
+  Disimpan di `storage/counter.json`.
+- Bluetooth dari Chrome (BLE) tetap memakai tiket teks (gambar terlalu besar untuk BLE).
 
 ## Print Agent — aplikasi di hosting, printer di venue
 Hosting di internet tidak bisa menjangkau printer di jaringan lokal venue (mis. `172.16.16.192`).

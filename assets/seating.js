@@ -37,10 +37,210 @@
     const top = overY > 0 ? -overY * CROP.top / (CROP.top + CROP.bottom) : (H - sh) / 2;
     Object.assign(stage.style, { width: sw + 'px', height: sh + 'px', left: left + 'px', top: top + 'px' });
     stage.classList.add('fitted');
+    fitVideoFrame(sw, sh, left, top, W, H);
+  }
+  /* Frame video = frame denah yang TERLIHAT di layar (sisi kanan/bawah latar bisa terpotong di layar
+     non-16:9), lalu layar 16:9 diletakkan di dalamnya dengan jarak tetap ke tepi → jarak kanan selalu ada. */
+  function fitVideoFrame(sw, sh, left, top, W, H) {
+    const frame = $('video-frame'), screen = frame && frame.querySelector('.vf-screen');
+    if (!screen) return;
+    const fx = sw * 0.297, fy = sh * 0.2075;
+    const fw = Math.min(sw * 0.703, (W - left) - fx);      // batas kanan layar (dalam koordinat stage)
+    const fh = Math.min(sh * 0.703, (H - top) - fy);       // batas bawah layar
+    const gL = sw * 0.011, gR = sw * 0.022, gV = sh * 0.016;  // jarak: kiri, kanan (lebih lega), atas/bawah
+    const aw = fw - gL - gR, ah = fh - gV * 2;
+    const w = Math.max(0, Math.min(aw, ah * 16 / 9)), h = w * 9 / 16;
+    Object.assign(frame.style, { width: fw + 'px', height: fh + 'px' });
+    Object.assign(screen.style, {
+      width: w + 'px', height: h + 'px',
+      left: (gL + (aw - w) / 2) + 'px', top: ((fh - h) / 2) + 'px',
+    });
   }
   fitStage();
   window.addEventListener('resize', fitStage);
   window.addEventListener('orientationchange', () => setTimeout(fitStage, 200));
+
+  /* ------------------------------------------------------------------
+   * Video idle di frame denah
+   * - tampil setelah {delay} detik tanpa scan (hanya saat layar idle / belum ada data)
+   * - beberapa video diputar bergantian; satu video → diulang
+   * - ada scan / sentuhan → disembunyikan & dijeda; idle lagi → dilanjutkan dari posisi terakhir
+   * ------------------------------------------------------------------ */
+  const IdleVideo = (function () {
+    const frame = $('video-frame');
+    const vid = $('idle-video');
+    const ytWrap = $('yt-wrap');
+    let cfg = C.idleVideo || { enabled: false, items: [], delay: 30, muted: true, version: '' };
+    if (!Array.isArray(cfg.items)) cfg.items = [];
+    let idx = 0, loaded = -1, timer = null, showing = false, idle = false, errors = 0;
+
+    /* ---- YouTube IFrame API (dimuat hanya bila ada video YouTube) ---- */
+    let ytApi = null, yt = null, ytReady = false, ytCheck = null, ytReveal = null;
+    function loadYTApi() {
+      if (ytApi) return ytApi;
+      ytApi = new Promise((resolve, reject) => {
+        if (window.YT && window.YT.Player) { resolve(); return; }
+        const t = setTimeout(() => { ytApi = null; reject(new Error('timeout')); }, 15000);
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { clearTimeout(t); if (prev) prev(); resolve(); };
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        s.async = true;
+        s.onerror = () => { clearTimeout(t); s.remove(); ytApi = null; reject(new Error('offline')); };
+        document.head.appendChild(s);
+      });
+      return ytApi;
+    }
+    function ytMute() { if (!yt || !ytReady) return; if (cfg.muted) yt.mute(); else yt.unMute(); }
+    function ytLoad(id) {
+      if (yt && ytReady) {
+        ytMute();
+        if (showing) yt.loadVideoById(id); else yt.cueVideoById(id);
+        return;
+      }
+      if (yt) return;  // pemutar sedang dibuat → onReady memuat video yang sedang aktif
+      loadYTApi().then(() => {
+        yt = new YT.Player('yt-player', {
+          host: 'https://www.youtube-nocookie.com',
+          width: '100%', height: '100%',
+          videoId: id,
+          playerVars: {
+            autoplay: 0, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1,
+            iv_load_policy: 3, modestbranding: 1, mute: cfg.muted ? 1 : 0,
+            origin: /^https?:/.test(location.protocol) ? location.origin : undefined,
+          },
+          events: {
+            onReady() {
+              ytReady = true;
+              try { const f = yt.getIframe(); f.setAttribute('tabindex', '-1'); f.setAttribute('aria-hidden', 'true'); } catch (e) {}
+              ytMute();
+              const it = cfg.items[idx];
+              if (it && it.type === 'youtube' && loaded === idx) {
+                if (showing) { yt.loadVideoById(it.id); ytVerify(); } else yt.cueVideoById(it.id);
+              }
+            },
+            onStateChange(ev) {
+              if (ev.data === YT.PlayerState.PLAYING) {
+                errors = 0;
+                // tunggu animasi ikon putar/jeda bawaan YouTube selesai sebelum video diperlihatkan
+                clearTimeout(ytReveal);
+                ytReveal = setTimeout(() => ytWrap.classList.add('playing'), 900);
+              }
+              if (ev.data === YT.PlayerState.ENDED) next();
+            },
+            // 2 = ID salah, 5 = HTML5 error, 100 = video dihapus/privat, 101/150 = tidak boleh di-embed
+            onError() { skip(); },
+          },
+        });
+      }).catch(() => skip());   // tidak ada internet / YouTube diblokir → lewati
+    }
+    function ytPlay() {
+      if (!yt || !ytReady) return;   // akan diputar di onReady
+      ytMute();
+      const st = yt.getPlayerState();
+      if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) yt.playVideo();   // hindari pemicu ganda
+      ytVerify();
+    }
+    function ytVerify() {
+      // autoplay bersuara bisa ditolak browser → ulangi tanpa suara
+      clearTimeout(ytCheck);
+      ytCheck = setTimeout(() => {
+        if (!showing || !yt || cur().type !== 'youtube') return;
+        const st = yt.getPlayerState();
+        if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) { yt.mute(); yt.playVideo(); }
+      }, 2500);
+    }
+
+    /* ---- daftar putar campuran: file unggahan + YouTube ---- */
+    function cur() { return cfg.items[idx] || {}; }
+    function apply() {
+      vid.muted = !!cfg.muted;
+      vid.loop = cfg.items.length === 1 && cur().type === 'file';
+      ytMute();
+    }
+    function load(i) {
+      const n = cfg.items.length;
+      if (!n) return;
+      idx = ((i % n) + n) % n;
+      loaded = idx;
+      const it = cfg.items[idx];
+      apply();
+      if (it.type === 'youtube') {
+        vid.pause(); vid.removeAttribute('src'); vid.load();
+        vid.hidden = true; ytWrap.hidden = false;
+        ytWrap.classList.remove('playing');   // layar loading/thumbnail YouTube tidak diperlihatkan
+        ytLoad(it.id);
+      } else {
+        clearTimeout(ytCheck);
+        if (yt && ytReady) yt.stopVideo();
+        ytWrap.hidden = true; vid.hidden = false;
+        vid.src = it.src;
+        vid.load();
+      }
+    }
+    function play() {
+      if (cur().type === 'youtube') { ytPlay(); return; }
+      const p = vid.play();
+      if (p && p.catch) p.catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+    }
+    function pause() {
+      clearTimeout(ytCheck); clearTimeout(ytReveal);
+      ytWrap.classList.remove('playing');   // saat dilanjutkan, tampil lagi setelah ikon putar YouTube hilang
+      vid.pause();
+      if (yt && ytReady) { try { yt.pauseVideo(); } catch (e) {} }
+    }
+    function next() {
+      if (cfg.items.length > 1) { load(idx + 1); if (showing) play(); return; }
+      // satu video YouTube → ulangi dari awal (file biasa memakai vid.loop)
+      if (cur().type === 'youtube' && yt && ytReady) { yt.seekTo(0, true); if (showing) yt.playVideo(); }
+    }
+    function skip() {
+      // video rusak / hilang / tidak bisa diputar → lewati (berhenti bila semua gagal)
+      if (++errors >= cfg.items.length) { hide(); return; }
+      load(idx + 1);
+      if (showing) play();
+    }
+    function show() {
+      if (!cfg.enabled || !cfg.items.length || !idle || errors >= cfg.items.length) return;
+      showing = true;
+      if (loaded < 0) load(0);
+      frame.classList.add('show');
+      play();
+    }
+    function hide() {
+      showing = false;
+      frame.classList.remove('show');
+      pause();
+    }
+    function arm() {
+      clearTimeout(timer);
+      if (cfg.enabled && cfg.items.length && idle) timer = setTimeout(show, cfg.delay * 1000);
+    }
+    vid.addEventListener('ended', () => { if (cfg.items.length > 1) next(); });
+    vid.addEventListener('playing', () => { errors = 0; });
+    vid.addEventListener('error', () => { if (vid.getAttribute('src')) skip(); });
+    apply();
+
+    return {
+      setIdle(v) { idle = v; if (v) { errors = 0; arm(); } else { clearTimeout(timer); hide(); } },
+      activity() { if (!idle) return; hide(); arm(); },   // sentuhan / ketikan saat idle
+      configure(n) {
+        if (!n || n.version === cfg.version) return;
+        if (!Array.isArray(n.items)) n.items = [];
+        const itemsChanged = JSON.stringify(n.items) !== JSON.stringify(cfg.items);
+        cfg = n; errors = 0;
+        if (itemsChanged) {
+          hide();
+          vid.removeAttribute('src'); vid.load();
+          if (yt && ytReady) yt.stopVideo();
+          idx = 0; loaded = -1;
+        }
+        apply();
+        if (!cfg.enabled) { clearTimeout(timer); hide(); } else if (!showing) arm();
+      },
+    };
+  })();
+  document.addEventListener('pointerdown', () => IdleVideo.activity(), { passive: true });
 
   /* ------------------------------------------------------------------
    * Nomor meja dari registrasi → label meja di denah
@@ -59,6 +259,18 @@
     return null;
   }
 
+  /* Nomor meja saja (tanpa huruf kursi), angka minimal 2 digit:
+     "04E" → "04", "4" → "04", "40D" → "40", "A1"/"A01" → "A01" (meja deret A) */
+  const pad2 = (n) => String(parseInt(n, 10)).padStart(2, '0');
+  function tableOnly(raw) {
+    const s = String(tableKey(raw) || raw || '').toUpperCase().replace(/\s+/g, '');
+    let m = /^0*(\d+)[-._]?[A-Z]*$/.exec(s);                 // 04E / 4 → 04
+    if (m) return pad2(m[1]);
+    m = /^([A-Z]+)[-._]?0*(\d+)[A-Z]?$/.exec(s);             // A1 / A01 → A01
+    if (m) return m[1] + pad2(m[2]);
+    return String(raw || '');
+  }
+
   /* ---------- tampilan ---------- */
   function setStatus(text, kind) {
     const el = $('status');
@@ -66,31 +278,76 @@
     el.className = 'status' + (kind ? ' ' + kind : '');
   }
 
+  /* ------------------------------------------------------------------
+   * Penjaga teks: memastikan isi TIDAK PERNAH melewati batas kotak.
+   *  1) perkecil huruf bertahap sampai muat 1 baris (min. 72% ukuran asli)
+   *  2) bila masih tidak muat → 2 baris, perkecil lagi sampai tinggi muat (min. 55%)
+   *  3) batas akhir → dipotong "…" di dalam kotak
+   * Ukuran dasar berasal dari CSS (cqw), jadi dihitung ulang saat layar berubah ukuran.
+   * ------------------------------------------------------------------ */
+  function fitText(el, opts) {
+    const box = el.parentElement;
+    el.style.fontSize = '';
+    el.classList.remove('wrap2');
+    if (!el.textContent) return;
+    const cs = getComputedStyle(box);
+    const availW = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+    const availH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 1;
+    const base = parseFloat(getComputedStyle(el).fontSize);
+    let size = base;
+    const set = (s) => { size = s; el.style.fontSize = s + 'px'; };
+
+    // 1) satu baris
+    while (el.scrollWidth > availW && size > base * (opts.minOne || 0.72)) set(size * 0.95);
+    if (el.scrollWidth <= availW) return;
+    if (!opts.allowWrap) { set(Math.max(size, base * (opts.minOne || 0.72))); return; } // sisa: "…" (CSS)
+
+    // 2) dua baris
+    el.classList.add('wrap2');
+    set(base * 0.9);
+    while ((el.scrollHeight > availH || el.scrollWidth > availW) && size > base * 0.55) set(size * 0.95);
+  }
+
   function fitRow(el, text) {
     el.textContent = text || '';
-    el.classList.toggle('small', String(text || '').length > 46);
+    fitText(el, { allowWrap: true });
   }
+
+  function fitAllText() {
+    ['v-nama', 'v-jabatan', 'v-instansi'].forEach((id) => fitText($(id), { allowWrap: true }));
+    fitText($('v-meja'), { allowWrap: false, minOne: 0.35 });
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(fitAllText));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAllText);
 
   function showIdle() {
     current = null;
     $('v-meja').textContent = '';
     $('v-meja').className = '';
     $('idle-hint').hidden = false;
-    $('idle-hint').innerHTML = scanActive ? 'Silakan scan QR Code<br>pada ID Card Anda' : 'Pemindaian<br>belum dimulai';
+    $('box-num').classList.add('is-idle');
+    $('idle-hint').classList.toggle('paused', !scanActive);
+    $('ih-title').textContent = scanActive ? 'Scan QR Code' : 'Pemindaian Belum Dimulai';
+    $('ih-sub').textContent = scanActive ? 'pada ID Card Anda' : 'Mohon menunggu sebentar';
+    $('ih-tip-text').textContent = scanActive ? (cam ? 'Arahkan ke kamera' : 'Arahkan ke scanner') : 'Segera dimulai';
     ['v-nama', 'v-jabatan', 'v-instansi'].forEach((id) => fitRow($(id), ''));
     $('marker').hidden = true;
     btn.hidden = true;           // tombol PRINT hanya muncul setelah data tampil
+    IdleVideo.setIdle(true);     // hitung mundur video idle dimulai
     btn.classList.remove('busy');
     setStatus('');
   }
 
   function showData(qr, d) {
     current = { qr, data: d };
+    IdleVideo.setIdle(false);    // data tampil → video disembunyikan & dijeda
     $('idle-hint').hidden = true;
-    const meja = d.unassigned ? 'Belum ditentukan' : (d.kursi || '-');
+    $('box-num').classList.remove('is-idle');
+    const meja = d.unassigned ? 'Belum ditentukan' : (tableOnly(d.kursi) || '-');
     const v = $('v-meja');
     v.textContent = meja;
     v.className = d.unassigned ? 'pending' : (meja.length > 4 ? 'long' : '');
+    fitText(v, { allowWrap: false, minOne: 0.35 });   // nomor meja tidak boleh keluar kotak
     fitRow($('v-nama'), d.nama);
     fitRow($('v-jabatan'), d.jabatan);
     fitRow($('v-instansi'), d.instansi);
@@ -137,6 +394,7 @@
       }
     }
     lastCode = code; lastAt = now;
+    IdleVideo.setIdle(false);    // ada scan → video langsung disembunyikan & dijeda
     if (!scanActive) { showIdle(); return; }
 
     busy = true;
@@ -172,7 +430,8 @@
       if (!json.ok) throw new Error(json.message || 'Gagal mencetak.');
 
       if (json.print_mode === 'cable') {
-        await printBrowser(json.data);
+        if (json.ticket && json.ticket.png && window.TicketPrint) await TicketPrint.print(json.ticket, 1);
+        else await printBrowser(json.data);
       } else if (json.print_mode === 'webbluetooth') {
         if (!window.BtPrinter) throw new Error('Modul printer Bluetooth tidak termuat.');
         if (!BtPrinter.status().connected) {
@@ -206,7 +465,7 @@
   });
 
   function printBrowser(d) {
-    $('t-kursi').textContent = d.kursi || '-';
+    $('t-kursi').textContent = tableOnly(d.kursi) || '-';   // nomor meja 2 digit, mis. 04
     $('t-kursi').className = 't-seat' + (String(d.kursi || '').length > 6 ? ' len-l' : String(d.kursi || '').length > 4 ? ' len-m' : '');
     $('t-nama').textContent = d.nama || '';
     $('t-nama').className = 't-name' + (String(d.nama || '').length > 34 ? ' len-l' : String(d.nama || '').length > 22 ? ' len-m' : '');
@@ -273,6 +532,7 @@
     try {
       await cam.start({ facingMode: C.cameraFacing }, { fps: 10, qrbox: { width: 200, height: 200 } },
         (text) => handleScan(text, 'camera'), () => {});
+      if (!current) showIdle(); // petunjuk "Arahkan ke kamera"
     } catch (err) {
       cam = null;
       $('camera-wrap').hidden = true;
@@ -286,6 +546,7 @@
     cam = null;
     $('camera-wrap').hidden = true;
     if (btnCam) btnCam.classList.remove('active');
+    if (!current) showIdle(); // petunjuk kembali "Arahkan ke scanner"
   }
   if (btnCam && window.Html5Qrcode) {
     btnCam.addEventListener('click', () => (cam ? stopCamera() : startCamera()));
@@ -309,6 +570,7 @@
     try {
       const s = await (await fetch(C.statusUrl, { cache: 'no-store' })).json();
       if (window.Station && stationSel && Array.isArray(s.stations)) Station.fill(stationSel, s.stations);
+      if (s.idle_video) IdleVideo.configure(s.idle_video);   // pengaturan video diubah dari Pengaturan
       if (s.print_mode && s.print_mode !== C.printMode && !busy) { location.reload(); return; }
       if (typeof s.scan_active === 'boolean' && s.scan_active !== scanActive) {
         scanActive = s.scan_active;
@@ -347,5 +609,7 @@
   // pengujian: seating.php?scan=PTBI-0001  /  seating.php?demo=40 (tanpa server)
   const p = new URLSearchParams(location.search);
   if (p.get('scan')) handleScan(p.get('scan'));
-  if (p.get('demo')) showData('DEMO', { id: 'DEMO', kursi: p.get('demo'), nama: 'Prof. Dr. H. Muhammad Syafii Antonio, M.Ec', jabatan: 'Rektor', instansi: 'Tazkia University' });
+  if (p.get('demo')) showData('DEMO', { id: 'DEMO', kursi: p.get('demo'),
+    nama: p.get('nama') || 'Prof. Dr. H. Muhammad Syafii Antonio, M.Ec',
+    jabatan: p.get('jabatan') || 'Rektor', instansi: p.get('instansi') || 'Tazkia University' });
 })();

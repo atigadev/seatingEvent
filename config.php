@@ -1,4 +1,5 @@
 <?php
+
 /**
  * KONFIGURASI APLIKASI SEAT KIOSK
  * ------------------------------------------------------------------
@@ -7,8 +8,8 @@
 
 return [
     // Judul acara yang tampil di layar & di cetakan
-    'event_name'  => 'PTBI 2026',
-    'event_sub'   => 'Pertemuan Tahunan',
+    'event_name'  => 'Pertemuan Tahunan Bank Indonesia',
+    'event_sub'   => 'Tahun 2026',
 
     'api' => [
         // Sumber data peserta (bisa diubah di Pengaturan › Sumber Data Peserta):
@@ -124,6 +125,14 @@ return [
         'wayfinding' => true,            // tampilkan rute ke meja (denah dari menu Denah & Wayfinding)
         'map_display_seconds' => 20,     // lama tampil hasil + rute (scan berikutnya langsung menggantikan)
         'seating_display_seconds' => 60, // halaman seating.php: lama data tampil sebelum kembali ke awal
+
+        // Video idle di frame denah halaman seating.php (diatur dari Pengaturan › Video Idle)
+        'idle_video' => [
+            'enabled' => false,
+            'delay'   => 30,      // detik tanpa scan sebelum video tampil
+            'muted'   => true,    // tanpa suara (autoplay browser lebih andal bila tanpa suara)
+            'files'   => [],      // urutan file di uploads/videos/
+        ],
         'error_display_seconds'  => 4,
         'duplicate_cooldown_seconds' => 5, // abaikan scan QR yang sama dalam rentang ini
         'enable_camera' => true,         // izinkan scan via kamera (selain scanner USB)

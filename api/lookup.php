@@ -49,6 +49,11 @@ if (($_POST['print'] ?? $_GET['print'] ?? '1') === '0') {
     json_response(['ok' => true, 'data' => $data, 'print_mode' => $mode, 'printed' => null, 'print_deferred' => true]);
 }
 
+// Tiket akan dicetak → beri nomor antrian bila Desain Tiket memakainya
+if ($cfg['print']['auto_print']) {
+    $data = ticket_prepare($data);
+}
+
 // Print Agent: masukkan ke antrean, agen di venue yang mencetak (kiosk memantau status job)
 if ($mode === 'agent' && $cfg['print']['auto_print']) {
     try {
@@ -65,9 +70,14 @@ if ($mode === 'agent' && $cfg['print']['auto_print']) {
 $printed = null;      // null = dicetak oleh browser (mode kabel / Bluetooth Chrome)
 $printError = '';
 $escpos = null;
+$ticket = null;
 if ($mode === 'webbluetooth') {
-    // browser yang mengirim ke printer BLE; server hanya menyusun byte ESC/POS
-    $escpos = base64_encode(str_repeat(escpos_build_ticket($data, $cfg), max(1, (int) $cfg['print']['copies'])));
+    // browser yang mengirim ke printer BLE; server hanya menyusun byte ESC/POS (teks: BLE terlalu lambat untuk gambar)
+    $escpos = base64_encode(str_repeat(escpos_build_ticket($data, $cfg, 'text'), max(1, (int) $cfg['print']['copies'])));
+}
+if ($mode === 'cable' && $cfg['print']['auto_print']) {
+    // browser mencetak gambar tiket sesuai Desain Tiket (ukuran kertas dinamis)
+    $ticket = ticket_for_browser($data, $cfg);
 }
 if (($mode === 'bluetooth' || $mode === 'brother') && $cfg['print']['auto_print']) {
     try {
@@ -93,4 +103,5 @@ json_response([
     'printed'     => $printed,
     'print_error' => $printError,
     'escpos'      => $escpos,
+    'ticket'      => $ticket,
 ]);

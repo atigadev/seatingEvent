@@ -168,7 +168,7 @@
           }
         }
       } else if (C.autoPrint) {
-        await printTicket(json.data);
+        await printTicket(json.data, json.ticket);
       }
       $('r-status').textContent = json.reprint > 0
         ? 'Tiket dicetak ulang (sudah dicetak ' + json.reprint + 'x sebelumnya)'
@@ -233,8 +233,14 @@
     else if (text.length > steps[0]) el.classList.add('len-m');
   }
 
-  function printTicket(d) {
-    $('t-kursi').textContent = d.kursi || '-';
+  function printTicket(d, ticket) {
+    // Desain Tiket dari server (gambar, ukuran kertas dinamis)
+    if (ticket && ticket.png && window.TicketPrint) return TicketPrint.print(ticket, C.copies);
+    // cadangan: tiket HTML lama
+    // nomor meja 2 digit tanpa huruf kursi: 04E → 04, A1 → A01
+    const kursi = String(d.kursi || '').toUpperCase().replace(/\s+/g, '');
+    const mNum = /^(\d+)[-._]?[A-Z]*$/.exec(kursi), mAlp = /^([A-Z]+)[-._]?(\d+)[A-Z]?$/.exec(kursi);
+    $('t-kursi').textContent = mNum ? String(+mNum[1]).padStart(2, '0') : mAlp ? mAlp[1] + String(+mAlp[2]).padStart(2, '0') : (d.kursi || '-');
     sizeClass($('t-kursi'), d.kursi || '', [4, 6]);
     $('t-nama').textContent = d.nama || '';
     sizeClass($('t-nama'), d.nama || '', [22, 34]);

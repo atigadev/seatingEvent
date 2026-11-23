@@ -21,6 +21,7 @@ $jsConfig = [
     'holdSeconds'    => (int) ($cfg['kiosk']['seating_display_seconds'] ?? 60),
     'cooldownSeconds'=> (int) $cfg['kiosk']['duplicate_cooldown_seconds'],
     'cameraFacing'   => $cfg['kiosk']['camera_facing'] ?? 'environment',
+    'idleVideo'      => idle_video_config($cfg),
     'cameraAutostart'=> $cfg['kiosk']['camera_autostart'] ?? false,
     'imageW'         => 8000,   // ukuran asli assets/img/seating-bg.jpg (koordinat meja memakai skala ini)
     'imageH'         => 4500,
@@ -38,7 +39,7 @@ $jsConfig = [
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
-<link rel="stylesheet" href="assets/seating.css?v=8">
+<link rel="stylesheet" href="assets/seating.css?v=15">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
   @media print { #ticket { width: <?= e($cfg['print']['printable_width'] ?? '72mm') ?> !important; } }
@@ -51,7 +52,26 @@ $jsConfig = [
   <button type="button" class="hot-logo" id="hot-logo" aria-label="Pengaturan"></button>
 
   <!-- panel kiri -->
-  <div class="box box-num" id="box-num"><span id="v-meja"></span><span class="idle-hint" id="idle-hint">Silakan scan QR Code<br>pada ID Card Anda</span></div>
+  <div class="box box-num is-idle" id="box-num"><span id="v-meja"></span>
+    <!-- tampilan menunggu scan -->
+    <span class="idle-hint" id="idle-hint">
+      <span class="ih-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 15V8a3 3 0 0 1 3-3h7M33 5h7a3 3 0 0 1 3 3v7M43 33v7a3 3 0 0 1-3 3h-7M15 43H8a3 3 0 0 1-3-3v-7"/>
+          <rect x="13" y="13" width="8" height="8" rx="1.2" fill="currentColor" stroke="none"/>
+          <rect x="27" y="13" width="8" height="8" rx="1.2" fill="currentColor" stroke="none"/>
+          <rect x="13" y="27" width="8" height="8" rx="1.2" fill="currentColor" stroke="none"/>
+          <path d="M27 27h3v3M35 27v8h-8" stroke-width="2.6"/>
+        </svg>
+        <i class="ih-scan"></i>
+      </span>
+      <span class="ih-text">
+        <b id="ih-title">Scan QR Code</b>
+        <span id="ih-sub">pada ID Card Anda</span>
+        <em id="ih-tip"><i class="ih-dot"></i><span id="ih-tip-text">Arahkan ke scanner</span></em>
+      </span>
+    </span>
+  </div>
   <div class="box box-row box-nama"><span id="v-nama"></span></div>
   <div class="box box-row box-jabatan"><span id="v-jabatan"></span></div>
   <div class="box box-row box-instansi"><span id="v-instansi"></span></div>
@@ -62,6 +82,14 @@ $jsConfig = [
   <div class="status" id="status"></div>
 
   <!-- penanda meja di denah -->
+  <!-- video idle: menutup frame denah saat belum ada scan (diatur di Pengaturan › Video Idle) -->
+  <div class="video-frame" id="video-frame" aria-hidden="true">
+    <div class="vf-screen">
+      <video id="idle-video" playsinline preload="auto" muted></video>
+      <div class="yt-wrap" id="yt-wrap" hidden><div id="yt-player"></div></div>
+    </div>
+  </div>
+
   <div class="marker" id="marker" hidden>
     <span class="m-pulse"></span><span class="m-pulse p2"></span>
     <span class="m-ring"></span>
@@ -110,7 +138,8 @@ $jsConfig = [
 <script src="assets/bt-printer.js?v=1"></script>
 <?php endif; ?>
 <script src="assets/station.js?v=1"></script>
-<script src="assets/seating.js?v=6"></script>
+<script src="assets/ticket-print.js?v=1"></script>
+<script src="assets/seating.js?v=17"></script>
 <script>
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

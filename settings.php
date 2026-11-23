@@ -29,8 +29,8 @@ if (isset($_POST['login_password'])) {
     if (admin_password_ok((string) $_POST['login_password'])) {
         session_regenerate_id(true);
         $_SESSION['seat_admin'] = true;
-        if (($_POST['next'] ?? '') === 'admin-denah.php') {
-            header('Location: admin-denah.php');
+        if (in_array($_POST['next'] ?? '', ['admin-denah.php', 'admin-tiket.php'], true)) {
+            header('Location: ' . $_POST['next']);
             exit;
         }
         back();
@@ -97,6 +97,82 @@ if ($authed && $action !== '') {
             }
             $_SESSION['api_test'] = $test;
             back('sumber');
+
+        /* --- Video idle (halaman seating) --- */
+        case 'video_settings':
+            idle_video_save([
+                'enabled' => !empty($_POST['iv_enabled']),
+                'delay'   => max(5, min(3600, (int) ($_POST['iv_delay'] ?? 30))),
+                'muted'   => empty($_POST['iv_sound']),
+            ]);
+            flash('Pengaturan video idle disimpan. Halaman seating ikut berubah dalam ±5 detik.');
+            back('video');
+
+        case 'video_upload':
+            $files = $_FILES['videos'] ?? null;
+            $list = (array) (app_config()['kiosk']['idle_video']['files'] ?? []);
+            $added = 0;
+            $errors = [];
+            if (!is_dir(IDLE_VIDEO_DIR)) mkdir(IDLE_VIDEO_DIR, 0775, true);
+            $count = is_array($files['name'] ?? null) ? count($files['name']) : 0;
+            for ($i = 0; $i < $count; $i++) {
+                $orig = (string) $files['name'][$i];
+                if ($files['error'][$i] !== UPLOAD_ERR_OK) {
+                    $errors[] = $orig . ': gagal diunggah (kode ' . $files['error'][$i] . ', maks. ' . ini_get('upload_max_filesize') . ')';
+                    continue;
+                }
+                $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+                $mime = function_exists('finfo_open') ? (string) finfo_file(finfo_open(FILEINFO_MIME_TYPE), $files['tmp_name'][$i]) : '';
+                if (!in_array($ext, ['mp4', 'webm', 'm4v'], true) || ($mime !== '' && strpos($mime, 'video/') !== 0)) {
+                    $errors[] = $orig . ': harus video MP4 atau WebM';
+                    continue;
+                }
+                $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower(pathinfo($orig, PATHINFO_FILENAME))), '-') ?: 'video';
+                $name = substr($slug, 0, 40) . '-' . bin2hex(random_bytes(3)) . '.' . ($ext === 'm4v' ? 'mp4' : $ext);
+                if (move_uploaded_file($files['tmp_name'][$i], IDLE_VIDEO_DIR . '/' . $name)) {
+                    $list[] = $name;
+                    $added++;
+                } else {
+                    $errors[] = $orig . ': gagal disimpan (izin folder uploads/videos)';
+                }
+            }
+            idle_video_save(['files' => array_values($list)]);
+            flash(($added ? "$added video ditambahkan. " : '') . implode(' · ', $errors) ?: 'Pilih file video terlebih dahulu.', $errors ? 'err' : 'ok');
+            back('video');
+
+        case 'video_youtube':
+            $id = youtube_id((string) ($_POST['yt_url'] ?? ''));
+            if ($id === null) {
+                flash('Tautan YouTube tidak dikenali. Contoh: https://www.youtube.com/watch?v=XXXXXXXXXXX atau https://youtu.be/XXXXXXXXXXX', 'err');
+                back('video');
+            }
+            $list = array_values((array) (app_config()['kiosk']['idle_video']['files'] ?? []));
+            $list[] = 'yt:' . $id;
+            idle_video_save(['files' => $list]);
+            flash('Video YouTube ditambahkan (' . $id . '). Kiosk perlu koneksi internet untuk memutarnya.');
+            back('video');
+
+        case 'video_move':
+        case 'video_delete':
+            $list = array_values((array) (app_config()['kiosk']['idle_video']['files'] ?? []));
+            $raw = (string) ($_POST['file'] ?? '');
+            $f = strpos($raw, 'yt:') === 0 ? $raw : basename($raw);
+            $i = array_search($f, $list, true);
+            if ($i !== false) {
+                if ($action === 'video_delete') {
+                    array_splice($list, (int) $i, 1);
+                    if (strpos($f, 'yt:') !== 0) @unlink(IDLE_VIDEO_DIR . '/' . $f);   // video YouTube: hanya dihapus dari daftar
+                    flash('Video dihapus dari daftar putar.');
+                } else {
+                    $j = ($_POST['dir'] ?? '') === 'up' ? $i - 1 : $i + 1;
+                    if ($j >= 0 && $j < count($list)) {
+                        [$list[$i], $list[$j]] = [$list[$j], $list[$i]];
+                    }
+                    flash('Urutan video diperbarui.');
+                }
+                idle_video_save(['files' => $list]);
+            }
+            back('video');
 
         /* --- Saklar wayfinding --- */
         case 'wf_on':
@@ -344,9 +420,9 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
   <form method="post" class="card">
     <label class="f" for="login_password">Password Pengaturan</label>
     <input type="password" id="login_password" name="login_password" autocomplete="current-password" autofocus>
-    <?php if (($_GET['next'] ?? '') === 'admin-denah.php'): ?>
-      <input type="hidden" name="next" value="admin-denah.php">
-      <p class="small" style="color:var(--muted);margin:8px 0 0">Login untuk membuka editor Denah &amp; Wayfinding.</p>
+    <?php $next = (string) ($_GET['next'] ?? ''); if (in_array($next, ['admin-denah.php', 'admin-tiket.php'], true)): ?>
+      <input type="hidden" name="next" value="<?= e($next) ?>">
+      <p class="small" style="color:var(--muted);margin:8px 0 0">Login untuk membuka <?= $next === 'admin-tiket.php' ? 'Desain Tiket' : 'editor Denah &amp; Wayfinding' ?>.</p>
     <?php endif; ?>
     <div class="actions">
       <button class="primary">Masuk</button>
@@ -356,7 +432,7 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
 <?php else: ?>
 
   <nav class="jump">
-    <a href="#scan">Saklar Scan</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#printer">Printer</a><a href="#password">Password</a>
+    <a href="#scan">Saklar Scan</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
   </nav>
 
   <!-- ================= 1. SAKLAR SCAN ================= -->
@@ -497,11 +573,89 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
     <div class="actions"><a class="btn primary" href="admin-denah.php">Buka Editor Denah</a></div>
   </div>
 
+  <!-- ================= VIDEO IDLE (halaman seating) ================= -->
+  <?php
+    $ivRaw = ($cfg['kiosk']['idle_video'] ?? []) + ['enabled' => false, 'delay' => 30, 'muted' => true, 'files' => []];
+    $ivFiles = array_values(array_filter((array) $ivRaw['files'], function ($f) {
+        $f = (string) $f;
+        return strpos($f, 'yt:') === 0 || is_file(IDLE_VIDEO_DIR . '/' . basename($f));
+    }));
+  ?>
+  <div class="card" id="video">
+    <h2>Video Idle — Halaman Seating</h2>
+    <p class="desc">Saat belum ada scan, video tampil di frame denah dan diputar bergantian.
+      Saat peserta scan, video dijeda & disembunyikan, lalu dilanjutkan kembali setelah layar idle lagi.</p>
+
+    <form method="post" class="scan-switch" style="margin:4px 0 14px;flex-wrap:wrap;gap:14px">
+      <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+      <label class="check" style="margin:0"><input type="checkbox" name="iv_enabled" value="1" <?= !empty($ivRaw['enabled']) ? 'checked' : '' ?>> Aktifkan video idle</label>
+      <label class="check" style="margin:0">Tampil setelah
+        <input type="number" name="iv_delay" min="5" max="3600" value="<?= (int) $ivRaw['delay'] ?>" style="width:90px;padding:8px">
+        detik tanpa scan</label>
+      <label class="check" style="margin:0"><input type="checkbox" name="iv_sound" value="1" <?= empty($ivRaw['muted']) ? 'checked' : '' ?>> Dengan suara</label>
+      <button class="primary" name="action" value="video_settings">Simpan</button>
+    </form>
+
+    <?php if (!$ivFiles): ?>
+      <p class="small" style="color:#ffd58a">Belum ada video. Unggah video atau tambahkan tautan YouTube agar fitur ini berjalan.</p>
+    <?php else: ?>
+      <div style="display:grid;gap:8px;margin-bottom:14px">
+        <?php foreach ($ivFiles as $i => $f): $f = (string) $f; $isYt = strpos($f, 'yt:') === 0; if (!$isYt) $f = basename($f); $ytId = $isYt ? substr($f, 3) : ''; ?>
+          <form method="post" style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.18);border-radius:10px;padding:8px">
+            <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+            <input type="hidden" name="file" value="<?= e($f) ?>">
+            <b style="width:22px;text-align:center;color:var(--accent)"><?= $i + 1 ?></b>
+            <?php if ($isYt): ?>
+              <img src="https://i.ytimg.com/vi/<?= e($ytId) ?>/mqdefault.jpg" alt="" loading="lazy" style="width:120px;height:68px;object-fit:cover;border-radius:6px;background:#000">
+              <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <span style="background:#e62117;color:#fff;font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px">YouTube</span>
+                <a href="https://www.youtube.com/watch?v=<?= e($ytId) ?>" target="_blank" rel="noopener" style="color:#fff"><?= e($ytId) ?></a><br>
+                <span class="small" style="color:var(--muted)">Butuh internet di kiosk</span>
+              </div>
+            <?php else: ?>
+              <video src="<?= e(IDLE_VIDEO_URL . '/' . rawurlencode($f)) ?>" muted preload="metadata" style="width:120px;height:68px;object-fit:cover;border-radius:6px;background:#000"></video>
+              <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= e($f) ?>">
+                <?= e($f) ?><br><span class="small" style="color:var(--muted)"><?= number_format(filesize(IDLE_VIDEO_DIR . '/' . $f) / 1048576, 1, ',', '.') ?> MB</span>
+              </div>
+            <?php endif; ?>
+            <input type="hidden" name="dir" value="">
+            <button class="secondary" name="action" value="video_move" onclick="this.form.dir.value='up'" <?= $i === 0 ? 'disabled' : '' ?> title="Naik">▲</button>
+            <button class="secondary" name="action" value="video_move" onclick="this.form.dir.value='down'" <?= $i === count($ivFiles) - 1 ? 'disabled' : '' ?> title="Turun">▼</button>
+            <button class="secondary" name="action" value="video_delete" onclick="return confirm('Hapus video ini?')" title="Hapus" style="color:#ffb3b5">✕</button>
+          </form>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
+    <form method="post" enctype="multipart/form-data" class="row" style="align-items:flex-end">
+      <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+      <div>
+        <label class="f" for="videos">Tambah video (MP4 / WebM, bisa pilih beberapa sekaligus)</label>
+        <input type="file" id="videos" name="videos[]" accept="video/mp4,video/webm,.mp4,.webm,.m4v" multiple style="width:100%;color:var(--muted)">
+        <p class="small" style="color:var(--muted);margin:6px 0 0">Batas server: <?= e(ini_get('upload_max_filesize')) ?> per file,
+          <?= e(ini_get('post_max_size')) ?> per unggahan. Disarankan MP4 (H.264) 1080p, ukuran kecil agar lancar di tablet.</p>
+      </div>
+      <div style="flex:0 0 auto"><button class="primary" name="action" value="video_upload">Unggah</button></div>
+    </form>
+
+    <form method="post" class="row" style="align-items:flex-end;margin-top:12px">
+      <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+      <div>
+        <label class="f" for="yt_url">Atau tambah video YouTube (tempel tautan)</label>
+        <input type="text" id="yt_url" name="yt_url" placeholder="https://www.youtube.com/watch?v=…  atau  https://youtu.be/…">
+        <p class="small" style="color:var(--muted);margin:6px 0 0">Diputar langsung dari YouTube (kiosk butuh internet). Video yang pemiliknya
+          melarang pemutaran di situs lain akan dilewati otomatis.</p>
+      </div>
+      <div style="flex:0 0 auto"><button class="primary" name="action" value="video_youtube">Tambah</button></div>
+    </form>
+  </div>
+
   <!-- ================= 3. PRINTER ================= -->
   <form method="post" class="card" id="printer">
     <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
     <h2>Printer</h2>
-    <p class="desc">Cara tiket dicetak.</p>
+    <p class="desc">Cara tiket dicetak. Tampilan & ukuran tiket diatur di
+      <a href="admin-tiket.php" style="color:var(--accent);font-weight:700">Desain Tiket →</a></p>
     <div class="modes">
       <?php $m = $cfg['print']['mode']; ?>
       <label class="mode">

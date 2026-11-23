@@ -23,6 +23,9 @@ function app_config(): array
         if (array_key_exists('scan_active', $saved)) {
             $config['kiosk']['scan_active'] = (bool) $saved['scan_active'];
         }
+        if (isset($saved['idle_video']) && is_array($saved['idle_video'])) {
+            $config['kiosk']['idle_video'] = array_merge($config['kiosk']['idle_video'] ?? [], $saved['idle_video']);
+        }
         if (array_key_exists('wayfinding', $saved)) {
             $config['kiosk']['wayfinding'] = (bool) $saved['wayfinding'];
         }
@@ -86,10 +89,80 @@ function set_admin_password(string $password): void
     update_settings(['admin_pin_hash' => password_hash($password, PASSWORD_DEFAULT)]);
 }
 
+/* ---------------- Video idle (halaman seating) ---------------- */
+const IDLE_VIDEO_DIR = __DIR__ . '/../uploads/videos';
+const IDLE_VIDEO_URL = 'uploads/videos';
+
+/**
+ * ID video YouTube dari tautan apa pun: watch?v=, youtu.be/, /shorts/, /embed/, /live/, atau ID 11 karakter.
+ * Kembalikan null bila bukan tautan YouTube yang valid.
+ */
+function youtube_id(string $url): ?string
+{
+    $url = trim($url);
+    if (preg_match('/^[A-Za-z0-9_-]{11}$/', $url)) return $url;
+    if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    $host = (string) preg_replace('/^(www\.|m\.|music\.)/', '', $host);
+    $path = (string) parse_url($url, PHP_URL_PATH);
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+    $id = null;
+    if ($host === 'youtu.be') {
+        $id = trim($path, '/');
+    } elseif (in_array($host, ['youtube.com', 'youtube-nocookie.com'], true)) {
+        if (!empty($q['v'])) $id = (string) $q['v'];
+        elseif (preg_match('#^/(?:shorts|embed|live|v)/([^/?]+)#', $path, $m)) $id = $m[1];
+    }
+    return ($id !== null && preg_match('/^[A-Za-z0-9_-]{11}$/', $id)) ? $id : null;
+}
+
+/**
+ * Konfigurasi video idle untuk kiosk. Item daftar putar:
+ *   "nama-file.mp4"  → video unggahan (uploads/videos/)
+ *   "yt:VIDEO_ID"    → video YouTube
+ */
+function idle_video_config(array $cfg): array
+{
+    $iv = ($cfg['kiosk']['idle_video'] ?? []) + ['enabled' => false, 'delay' => 30, 'muted' => true, 'files' => []];
+    $items = [];
+    foreach ((array) $iv['files'] as $f) {
+        $f = (string) $f;
+        if (strpos($f, 'yt:') === 0) {
+            $id = substr($f, 3);
+            if (preg_match('/^[A-Za-z0-9_-]{11}$/', $id)) $items[] = ['type' => 'youtube', 'id' => $id];
+            continue;
+        }
+        $f = basename($f);
+        if ($f !== '' && is_file(IDLE_VIDEO_DIR . '/' . $f)) {
+            $items[] = ['type' => 'file', 'src' => IDLE_VIDEO_URL . '/' . rawurlencode($f)];
+        }
+    }
+    return [
+        'enabled' => !empty($iv['enabled']) && $items !== [],
+        'delay'   => max(5, min(3600, (int) $iv['delay'])),
+        'muted'   => !empty($iv['muted']),
+        'items'   => $items,
+        'version' => substr(md5(json_encode([$iv['enabled'], $iv['delay'], $iv['muted'], $items])), 0, 10),
+    ];
+}
+
+/** Simpan pengaturan video idle (daftar file diganti utuh, bukan digabung) */
+function idle_video_save(array $patch): void
+{
+    $s = load_settings();
+    $cur = (array) ($s['idle_video'] ?? []);
+    foreach ($patch as $k => $v) {
+        $cur[$k] = $v;
+    }
+    $s['idle_video'] = $cur;
+    save_settings($s);
+}
+
 /** Status kiosk yang dipantau layar kiosk secara berkala */
 function kiosk_status(array $cfg): array
 {
     return [
+        'idle_video'  => idle_video_config($cfg),
         'scan_active' => (bool) $cfg['kiosk']['scan_active'],
         'standby'     => [
             'title'    => (string) $cfg['kiosk']['standby']['title'],

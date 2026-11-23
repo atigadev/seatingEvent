@@ -5,14 +5,14 @@
  * - API (api/*, mock/api.php): selalu ke jaringan, tidak pernah di-cache.
  * Naikkan VERSION setiap kali aset diubah agar perangkat mengambil versi baru.
  */
-const VERSION = 'seat-v8';
+const VERSION = 'seat-v11';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 
 const PRECACHE = [
   './',
-  'assets/style.css?v=11',
-  'assets/app.js?v=14',
+  'assets/style.css?v=12',
+  'assets/app.js?v=16',
   'assets/wayfinding.css?v=1',
   'assets/router.js?v=1',
   'assets/wayfinding.js?v=2',
@@ -47,6 +47,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
   if (url.pathname.includes('/api/') || url.pathname.includes('/mock/')) return;
+  // video idle: diputar dengan permintaan sebagian (HTTP 206) yang tidak bisa disimpan di cache
+  if (url.pathname.includes('/uploads/videos/') || req.headers.has('range')) return;
 
   // Halaman: network-first
   if (req.mode === 'navigate') {
