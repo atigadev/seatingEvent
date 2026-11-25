@@ -570,6 +570,8 @@
     try {
       const s = await (await fetch(C.statusUrl, { cache: 'no-store' })).json();
       if (window.Station && stationSel && Array.isArray(s.stations)) Station.fill(stationSel, s.stations);
+      // halaman awal diganti ke Kiosk Scan → bila halaman ini tampil di alamat utama (bukan seating.php langsung), ikut berpindah
+      if (s.start_page === 'index' && !/seating\.php$/i.test(location.pathname) && !busy && !current) { location.reload(); return; }
       if (s.idle_video) IdleVideo.configure(s.idle_video);   // pengaturan video diubah dari Pengaturan
       if (s.print_mode && s.print_mode !== C.printMode && !busy) { location.reload(); return; }
       if (typeof s.scan_active === 'boolean' && s.scan_active !== scanActive) {

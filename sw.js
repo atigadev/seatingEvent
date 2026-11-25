@@ -5,14 +5,14 @@
  * - API (api/*, mock/api.php): selalu ke jaringan, tidak pernah di-cache.
  * Naikkan VERSION setiap kali aset diubah agar perangkat mengambil versi baru.
  */
-const VERSION = 'seat-v11';
+const VERSION = 'seat-v13';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 
 const PRECACHE = [
   './',
   'assets/style.css?v=12',
-  'assets/app.js?v=16',
+  'assets/app.js?v=18',
   'assets/wayfinding.css?v=1',
   'assets/router.js?v=1',
   'assets/wayfinding.js?v=2',

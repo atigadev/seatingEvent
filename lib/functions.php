@@ -29,6 +29,9 @@ function app_config(): array
         if (array_key_exists('wayfinding', $saved)) {
             $config['kiosk']['wayfinding'] = (bool) $saved['wayfinding'];
         }
+        if (isset($saved['start_page']) && in_array($saved['start_page'], ['index', 'seating'], true)) {
+            $config['kiosk']['start_page'] = $saved['start_page'];
+        }
         if (isset($saved['api']) && is_array($saved['api'])) {
             foreach (['mode', 'url', 'verify_ssl'] as $k) {
                 if (array_key_exists($k, $saved['api'])) {
@@ -170,7 +173,15 @@ function kiosk_status(array $cfg): array
         ],
         'print_mode'  => $cfg['print']['mode'],
         'wayfinding'  => (bool) ($cfg['kiosk']['wayfinding'] ?? true),
+        'start_page'  => start_page($cfg),
     ];
+}
+
+/** Halaman awal kiosk di alamat utama (index.php): 'index' (Kiosk Scan) atau 'seating' (Seating Arrangement) */
+function start_page(?array $cfg = null): string
+{
+    $cfg = $cfg ?? app_config();
+    return ($cfg['kiosk']['start_page'] ?? 'index') === 'seating' ? 'seating' : 'index';
 }
 
 function print_mode_label(array $cfg): string

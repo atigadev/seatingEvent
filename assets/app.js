@@ -384,6 +384,10 @@
   if (window.Station && stationSel) Station.bind(stationSel, () => focusInput());
 
   function applyStatus(s) {
+    // Halaman awal diganti ke Seating dari Pengaturan → kiosk di alamat utama ikut berpindah (saat layar idle).
+    // Tidak berlaku bila halaman ini dibuka khusus (index.php?page=scan / ?kiosk= / ?testprint=).
+    if (s.start_page === 'seating' && !/[?&](page|kiosk|testprint)=/.test(location.search)
+        && !busy && screen.className === 'state-' + idleState()) { location.reload(); return; }
     if (window.Station && stationSel && Array.isArray(s.stations)) Station.fill(stationSel, s.stations);
     if (s.standby) {
       $('sb-title').textContent = s.standby.title || '';
@@ -496,7 +500,12 @@
             return printFailed(e.message || String(e), true);
           }
         } else {
-          await printTicket(sample);
+          // Kabel USB: gambar Desain Tiket dengan ukuran printer — sama persis dengan cetak sungguhan
+          let ticket = null;
+          if (C.printMode === 'cable') {
+            try { ticket = (await (await fetch('api/test-ticket.php?for=cable', { cache: 'no-store' })).json()).ticket; } catch (e) {}
+          }
+          await printTicket(sample, ticket);
         }
         $('r-status').textContent = 'Test cetak terkirim ke printer';
         scheduleReset(C.resultSeconds);

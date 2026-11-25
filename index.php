@@ -1,8 +1,14 @@
 <?php
 declare(strict_types=1);
-require __DIR__ . '/lib/functions.php';
+require_once __DIR__ . '/lib/functions.php';
 
 $cfg = app_config();
+// Halaman awal = Seating Arrangement (Pengaturan › Halaman Awal). Tampilan lama tetap bisa dibuka
+// lewat index.php?page=scan; test cetak & pilihan lokasi wayfinding (?kiosk=) selalu memakai halaman ini.
+if (start_page($cfg) === 'seating' && !isset($_GET['page']) && !isset($_GET['testprint']) && !isset($_GET['kiosk'])) {
+    require __DIR__ . '/seating.php';
+    exit;
+}
 $seatLabel = (string) ($cfg['kiosk']['seat_label'] ?? 'Nomor Kursi');
 $jsConfig = [
     'lookupUrl'      => 'api/lookup.php',
@@ -173,8 +179,8 @@ $jsConfig = [
 <script src="assets/station.js?v=1"></script>
 <script src="assets/router.js?v=1"></script>
 <script src="assets/wayfinding.js?v=2"></script>
-<script src="assets/ticket-print.js?v=1"></script>
-<script src="assets/app.js?v=16"></script>
+<script src="assets/ticket-print.js?v=2"></script>
+<script src="assets/app.js?v=18"></script>
 <script>
   // PWA: daftarkan service worker (hanya aktif di https atau localhost)
   if ('serviceWorker' in navigator && window.isSecureContext) {

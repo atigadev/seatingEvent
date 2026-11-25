@@ -64,6 +64,14 @@ if ($authed && $action !== '') {
                 : 'Pemindaian DIHENTIKAN. Kiosk menampilkan layar standby.');
             back('scan');
 
+        /* --- Halaman awal kiosk --- */
+        case 'start_page':
+            $sp = ($_POST['start_page'] ?? '') === 'seating' ? 'seating' : 'index';
+            update_settings(['start_page' => $sp]);
+            flash('Halaman awal kiosk: ' . ($sp === 'seating' ? 'Seating Arrangement' : 'Kiosk Scan')
+                . '. Kiosk yang sedang terbuka di alamat utama ikut berpindah dalam ±5 detik.');
+            back('halaman');
+
         /* --- Sumber data peserta --- */
         case 'save_api':
         case 'test_api':
@@ -432,7 +440,7 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
 <?php else: ?>
 
   <nav class="jump">
-    <a href="#scan">Saklar Scan</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
+    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
   </nav>
 
   <!-- ================= 1. SAKLAR SCAN ================= -->
@@ -449,6 +457,55 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
               role="switch" aria-checked="<?= $active ? 'true' : 'false' ?>" title="<?= $active ? 'Hentikan scan' : 'Mulai scan' ?>"></button>
     </div>
   </form>
+
+  <!-- ================= HALAMAN AWAL KIOSK ================= -->
+  <?php $startPage = start_page($cfg); ?>
+  <form method="post" class="card" id="halaman">
+    <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+    <h2>Halaman Awal Kiosk</h2>
+    <p class="desc">Tampilan scan yang muncul saat kiosk membuka alamat utama (<code><?= e(rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')) ?>/</code>).
+      Kiosk yang sedang terbuka ikut berpindah otomatis.</p>
+    <div class="modes" style="grid-template-columns:1fr 1fr">
+      <label class="mode">
+        <input type="radio" name="start_page" value="index" <?= $startPage === 'index' ? 'checked' : '' ?>>
+        <div class="t">Kiosk Scan</div>
+        <div class="d">Tampilan scan klasik + wayfinding denah. Selalu bisa dibuka lewat <code>index.php?page=scan</code>.</div>
+      </label>
+      <label class="mode">
+        <input type="radio" name="start_page" value="seating" <?= $startPage === 'seating' ? 'checked' : '' ?>>
+        <div class="t">Seating Arrangement</div>
+        <div class="d">Latar resmi + meja berpendar di denah + video idle. Selalu bisa dibuka lewat <code>seating.php</code>.</div>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="primary" name="action" value="start_page">Simpan Halaman Awal</button>
+      <a class="btn secondary" href="index.php?page=scan" target="_blank">Buka Kiosk Scan</a>
+      <a class="btn secondary" href="seating.php" target="_blank">Buka Seating</a>
+    </div>
+  </form>
+
+  <!-- ================= APLIKASI PETUGAS (HP) ================= -->
+  <div class="card" id="petugas">
+    <h2>Aplikasi Petugas (HP)</h2>
+    <p class="desc">Petugas scan QR ID Card peserta dengan kamera HP → nomor meja, detail peserta, riwayat cetak &amp; lokasi meja di denah.
+      Bisa dipasang sebagai aplikasi (PWA). Hanya melihat data — tidak mencetak dan tetap bisa dipakai walau saklar scan kiosk mati.</p>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div id="m-qr" style="background:#fff;padding:8px;border-radius:10px;line-height:0"></div>
+      <div style="flex:1;min-width:200px">
+        <p class="small" style="margin:0 0 8px">Scan QR ini dengan HP petugas, atau buka:</p>
+        <p style="margin:0 0 10px;word-break:break-all"><a id="m-url" href="m/" target="_blank" rel="noopener" style="color:#fff;font-weight:700">m/</a></p>
+        <p class="small" style="color:var(--muted);margin:0">Kamera HP hanya berfungsi lewat <b>HTTPS</b> (mis. https://seat.saturegis.com/m/).</p>
+      </div>
+    </div>
+  </div>
+  <script src="assets/vendor/qrcode.min.js"></script>
+  <script>
+    (function () {
+      var url = new URL('m/', location.href).href;
+      var a = document.getElementById('m-url'); a.href = url; a.textContent = url;
+      try { new QRCode(document.getElementById('m-qr'), { text: url, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+    })();
+  </script>
 
   <!-- ================= SUMBER DATA PESERTA ================= -->
   <?php $api = $cfg['api']; $isLive = ($api['mode'] ?? 'mock') === 'live'; ?>

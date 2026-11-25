@@ -6,7 +6,7 @@ declare(strict_types=1);
  * meja di denah berkelap-kelip. Cetak tiket lewat tombol PRINT.
  * Posisi meja: assets/seating-tables.json (koordinat piksel pada gambar 8000×4500).
  */
-require __DIR__ . '/lib/functions.php';
+require_once __DIR__ . '/lib/functions.php';   // juga di-include dari index.php bila halaman awal = seating
 
 $cfg = app_config();
 $seatLabel = (string) ($cfg['kiosk']['seat_label'] ?? 'Nomor Meja');
@@ -39,7 +39,7 @@ $jsConfig = [
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
-<link rel="stylesheet" href="assets/seating.css?v=15">
+<link rel="stylesheet" href="assets/seating.css?v=16">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
   @media print { #ticket { width: <?= e($cfg['print']['printable_width'] ?? '72mm') ?> !important; } }
@@ -95,10 +95,10 @@ $jsConfig = [
     <span class="m-ring"></span>
     <span class="m-disc" id="m-disc"></span>
   </div>
-</main>
 
-<!-- pratinjau kamera -->
-<div id="camera-wrap" class="camera-box" hidden><div id="camera-box"></div></div>
+  <!-- pratinjau kamera: di kolom kiri (di bawah Instansi, samping tombol PRINT) agar denah tidak tertutup -->
+  <div id="camera-wrap" class="camera-box" hidden><div id="camera-box"></div></div>
+</main>
 
 <!-- menu bawah (sama dengan halaman kiosk utama): tersembunyi, muncul saat mouse/sentuhan di bawah layar -->
 <footer class="bottom" id="bottom">
@@ -138,8 +138,8 @@ $jsConfig = [
 <script src="assets/bt-printer.js?v=1"></script>
 <?php endif; ?>
 <script src="assets/station.js?v=1"></script>
-<script src="assets/ticket-print.js?v=1"></script>
-<script src="assets/seating.js?v=17"></script>
+<script src="assets/ticket-print.js?v=2"></script>
+<script src="assets/seating.js?v=18"></script>
 <script>
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

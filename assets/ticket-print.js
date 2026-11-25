@@ -26,7 +26,7 @@ window.TicketPrint = (function () {
   function print(ticket, copies) {
     const { img, st } = ensureNodes();
     const w = Number(ticket.page_w_mm || ticket.width_mm);
-    const h = Math.ceil(Number(ticket.height_mm) + 1);
+    const h = Number(ticket.page_h_mm) || Math.ceil(Number(ticket.height_mm) + 1);
     // halaman = lebar kertas × tinggi tiket; gambar di tengah selebar area cetak
     st.textContent =
       `@page { size: ${w}mm ${h}mm; margin: 0; }` +

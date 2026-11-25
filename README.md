@@ -79,6 +79,9 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
 - Background: `assets/img/seating-bg.jpg` (data contoh pada gambar asli sudah dihapus).
   Posisi 83 meja: `assets/seating-tables.json` (piksel pada gambar 1920×1200) — perbarui bila denah berubah.
 - Uji tampilan tanpa scan: `seating.php?demo=40`.
+- **Halaman awal** (Pengaturan › Halaman Awal Kiosk): pilih Kiosk Scan atau Seating Arrangement untuk alamat
+  utama (`/` · `index.php`). Kiosk yang terbuka di alamat utama ikut berpindah saat idle (±5 detik).
+  Tetap bisa dibuka langsung: `index.php?page=scan` (Kiosk Scan) dan `seating.php`.
 - **Video idle** (Pengaturan › Video Idle): video MP4/WebM tampil memenuhi frame denah setelah N detik tanpa scan,
   diputar bergantian (1 video → diulang). Saat ada scan/sentuhan: disembunyikan & dijeda; saat idle lagi:
   dilanjutkan dari posisi terakhir. Bisa diaktifkan/dimatikan, diurutkan, dihapus, dengan/tanpa suara;
@@ -87,6 +90,19 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
     dicampur dengan file unggahan dalam satu daftar putar. Diputar via YouTube IFrame API (youtube-nocookie),
     tanpa kontrol, dipotong agar judul YouTube & bilah hitam tidak terlihat. Butuh internet di kiosk;
     video yang tidak boleh di-embed / dihapus / offline dilewati otomatis.
+
+## Aplikasi Petugas HP (`m/`)
+
+PWA terpisah (scope `m/`, desain sendiri, terang/gelap) untuk petugas di lapangan:
+- Scan QR ID Card dengan kamera HP (default kamera belakang, ganti kamera, senter bila didukung),
+  cadangan **Foto QR** dan ketik ID manual. Kamera wajib **HTTPS**.
+- Hasil: nomor meja besar (2 digit), nama, jabatan, instansi, ID, status cetak tiket (dari log kiosk),
+  dan **lokasi meja** di potongan denah (`m/denah.php`, dibuat otomatis dari `assets/img/seating-bg.jpg`,
+  bisa diperbesar). Riwayat 20 scan terakhir tersimpan di HP.
+- Data dari `api/m-lookup.php`: **baca saja** — tidak mencetak, tidak menulis log, tidak terpengaruh saklar scan.
+- PWA: banner pasang (Android/iOS), banner versi baru + tombol Update, tetap terbuka saat offline.
+  Naikkan `M_VERSION` (m/index.php) & `VERSION` (m/sw.js) saat aset diubah.
+- Tautan & QR untuk membuka di HP: Pengaturan › Aplikasi Petugas.
 
 ## Denah & Wayfinding (logika Satumap)
 Pengaturan › **Buka Editor Denah** (`admin-denah.php`). Setelah scan, kiosk menampilkan nomor kursi
