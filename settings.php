@@ -440,7 +440,7 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
 <?php else: ?>
 
   <nav class="jump">
-    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
+    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#unduh-kiosk">Unduh Kiosk</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
   </nav>
 
   <!-- ================= 1. SAKLAR SCAN ================= -->
@@ -481,6 +481,33 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
       <button class="primary" name="action" value="start_page">Simpan Halaman Awal</button>
       <a class="btn secondary" href="index.php?page=scan" target="_blank">Buka Kiosk Scan</a>
       <a class="btn secondary" href="seating.php" target="_blank">Buka Seating</a>
+    </div>
+  </form>
+
+  <!-- ================= UNDUH SKRIP KIOSK ================= -->
+  <form method="get" action="kiosk-download.php" class="card" id="unduh-kiosk">
+    <h2>Unduh Skrip Kiosk (PC Windows)</h2>
+    <p class="desc">Skrip untuk membuka aplikasi ini dalam mode kiosk + cetak tanpa dialog di PC venue.
+      Alamat situs sudah terisi otomatis — PC kiosk tidak perlu XAMPP.</p>
+    <ol class="small" style="margin:0 0 12px;padding-left:20px;line-height:1.7">
+      <li>Di PC kiosk: pasang <b>Google Chrome</b>, colok printer USB, jadikan <b>Default Printer</b>
+        (Settings › Printers &amp; scanners; matikan "Let Windows manage my default printer").</li>
+      <li>Buka halaman Pengaturan ini <b>di PC kiosk</b>, login, lalu klik <b>Unduh</b> di bawah
+        (atau unduh di laptop lalu salin lewat flashdisk).</li>
+      <li>Pindahkan file ke folder tetap, mis. <code>C:\SeatKiosk\</code>. Bila Windows memblokir:
+        klik kanan file › Properties › centang <b>Unblock</b> › OK.</li>
+      <li>Klik dua kali file tersebut → kiosk terbuka layar penuh. Tutup: <b>Alt+F4</b>.
+        Muncul "Windows protected your PC"? klik <b>More info › Run anyway</b>.</li>
+      <li>Agar menyala otomatis saat PC hidup: buka Command Prompt di folder itu, jalankan
+        <code>start-kiosk.bat /pasang</code>.</li>
+      <li>Uji: scan satu ID Card — tiket harus keluar tanpa dialog print dan tanpa header/footer.</li>
+    </ol>
+    <div class="row" style="align-items:flex-end">
+      <div>
+        <label class="f" for="dl_station">Stasiun cetak (opsional, hanya mode Print Agent)</label>
+        <input type="text" id="dl_station" name="station" placeholder="mis. pintu-utara — kosongkan bila tidak dipakai" pattern="[A-Za-z0-9_-]*">
+      </div>
+      <div style="flex:0 0 auto"><button class="primary">Unduh start-kiosk.bat</button></div>
     </div>
   </form>
 

@@ -94,10 +94,14 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
 ## Kiosk di Hosting (`start-kiosk-hosting.bat`)
 
 PC kiosk di venue **tidak perlu XAMPP** — cukup Chrome + file `start-kiosk-hosting.bat`:
-1. Salin `start-kiosk-hosting.bat` ke PC kiosk (ubah `URL` bila domain berbeda; `STATION` untuk Print Agent).
+1. Unduh dari **Pengaturan › Unduh Skrip Kiosk** (`kiosk-download.php`, perlu login) — alamat situs &
+   stasiun cetak sudah terisi otomatis. Atau salin `start-kiosk-hosting.bat` lalu ubah `URL` / `STATION` manual.
 2. Jalankan → Chrome terbuka layar penuh ke hosting, cetak tanpa dialog. Tutup: **Alt+F4**.
 3. Agar menyala otomatis saat Windows hidup: jalankan `start-kiosk-hosting.bat /pasang`.
 4. Halaman yang tampil (Kiosk Scan / Seating) diatur dari Pengaturan › Halaman Awal Kiosk.
+5. Header/footer bawaan browser (tanggal, judul, URL, nomor halaman) dimatikan otomatis oleh skrip kiosk
+   lewat kebijakan `PrintHeaderFooter=0` (HKCU, Chrome & Edge). Efek samping: Chrome menampilkan
+   "Dikelola oleh organisasi Anda". Hapus: `reg delete "HKCU\Software\Policies\Google\Chrome" /v PrintHeaderFooter /f`.
 
 Mode printer saat aplikasi di hosting:
 | Mode | Di hosting | Catatan |

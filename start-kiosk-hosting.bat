@@ -50,6 +50,12 @@ for /l %%i in (1,1,20) do (
 echo Internet belum tersedia, kiosk tetap dibuka (akan memakai cache bila ada).
 :online
 
+REM --- matikan header/footer bawaan browser saat cetak (tanggal, judul, URL, nomor halaman) ---
+REM     Kebijakan PrintHeaderFooter=0 memaksa pilihan "Headers and footers" selalu mati.
+reg add "HKCU\Software\Policies\Google\Chrome" /v PrintHeaderFooter /t REG_DWORD /d 0 /f >nul 2>&1
+reg add "HKCU\Software\Policies\Microsoft\Edge" /v PrintHeaderFooter /t REG_DWORD /d 0 /f >nul 2>&1
+if errorlevel 1 echo [!] Gagal mengatur kebijakan cetak - jalankan sekali sebagai Administrator.
+
 echo Membuka kiosk: %URL%
 start "" "%BROWSER%" --kiosk --kiosk-printing --user-data-dir="%PROFILE%" ^
   --no-first-run --disable-session-crashed-bubble --disable-infobars --noerrdialogs ^
