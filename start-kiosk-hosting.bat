@@ -72,7 +72,7 @@ exit /b 0
 #PS-BEGIN
 # --- PowerShell (dijalankan oleh baris di atas): atur pengaturan cetak tersimpan di profil kiosk ---
 # Chrome --kiosk-printing mencetak memakai pengaturan print terakhir di profil:
-# header/footer MATI, margin Default (ikut CSS @page margin 0), skala 100%, tujuan = Default Printer Windows.
+# header/footer MATI, portrait, margin Default, skala 100%, printer & ukuran kertas = bawaan driver Windows.
 $prof = $env:SEAT_PROFILE
 if (-not $prof) { return }
 $dir = Join-Path $prof 'Default'
@@ -91,9 +91,9 @@ $sticky = Get-Child (Get-Child $p 'printing') 'print_preview_sticky_settings'
 $app = $null
 if ($sticky.PSObject.Properties.Name -contains 'appState') { try { $app = $sticky.appState | ConvertFrom-Json } catch {} }
 if (-not $app) { $app = New-Object PSObject }
-$set = @{ version = 2; isHeaderFooterEnabled = $false; marginsType = 0; isCssBackgroundEnabled = $true; scalingType = 0; scaling = '100' }
+$set = @{ version = 2; isHeaderFooterEnabled = $false; isLandscapeEnabled = $false; marginsType = 0; isCssBackgroundEnabled = $true; scalingType = 0; scaling = '100' }
 foreach ($k in $set.Keys) { $app | Add-Member -Force -NotePropertyName $k -NotePropertyValue $set[$k] }
-if ($app.PSObject.Properties.Name -contains 'recentDestinations') { $app.PSObject.Properties.Remove('recentDestinations') }
+foreach ($k in 'recentDestinations','mediaSize','dpi') { if ($app.PSObject.Properties.Name -contains $k) { $app.PSObject.Properties.Remove($k) } }   # ukuran kertas & printer = bawaan driver
 $sticky | Add-Member -Force -NotePropertyName appState -NotePropertyValue ($app | ConvertTo-Json -Compress -Depth 20)
 [IO.File]::WriteAllText($file, ($p | ConvertTo-Json -Compress -Depth 100), (New-Object Text.UTF8Encoding $false))
 Write-Host 'Pengaturan cetak kiosk: header/footer mati, margin default, printer default.'

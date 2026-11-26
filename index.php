@@ -179,7 +179,7 @@ $jsConfig = [
 <script src="assets/station.js?v=1"></script>
 <script src="assets/router.js?v=1"></script>
 <script src="assets/wayfinding.js?v=2"></script>
-<script src="assets/ticket-print.js?v=2"></script>
+<script src="assets/ticket-print.js?v=4"></script>
 <script src="assets/app.js?v=19"></script>
 <script>
   // PWA: daftarkan service worker (hanya aktif di https atau localhost)

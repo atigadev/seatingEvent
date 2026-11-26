@@ -27,14 +27,21 @@ window.TicketPrint = (function () {
     const { img, st } = ensureNodes();
     const w = Number(ticket.page_w_mm || ticket.width_mm);
     const h = Number(ticket.page_h_mm) || Math.ceil(Number(ticket.height_mm) + 1);
-    // halaman = lebar kertas × tinggi tiket; gambar di tengah selebar area cetak
-    st.textContent =
-      `@page { size: ${w}mm ${h}mm; margin: 0; }` +
+    const driver = ticket.page_mode === 'driver';
+    // 'driver': ukuran & orientasi halaman dari kertas yang dipilih di driver printer (mis. label Brother 62×40 mm)
+    //           → tanpa @page size agar Chrome tidak memutar / mengecilkan tiket.
+    // 'app'   : halaman = lebar kertas × tinggi tiket (minimal selebar kertas agar tetap portrait), isi di tengah.
+    const page = driver ? '@page { margin: 0; }' : `@page { size: ${w}mm ${h}mm; margin: 0; }`;
+    const box = driver
+      ? ` body.print-img #ticket-img { display: block !important; width: 100%; margin: 0; text-align: center; }`
+      : ` body.print-img #ticket-img { display: flex !important; flex-direction: column; align-items: center; justify-content: center;` +
+        ` width: ${w}mm; height: ${Math.max(1, h - 1)}mm; margin: 0; overflow: hidden; }`;
+    st.textContent = page +
       `@media print { body.print-img > *:not(#ticket-img) { display: none !important; }` +
       ` body.print-img::before, body.print-img::after { display: none !important; }` +
-      ` html, body.print-img { background: #fff !important; }` +
-      ` body.print-img #ticket-img { display: block !important; width: ${w}mm; text-align: center; }` +
-      ` body.print-img #ticket-img img { width: ${ticket.width_mm}mm; height: auto; image-rendering: pixelated; } }`;
+      ` html, body.print-img { background: #fff !important; margin: 0 !important; padding: 0 !important; }` +
+      box +
+      ` body.print-img #ticket-img img { display: block; margin: 0 auto; width: ${ticket.width_mm}mm; height: auto; image-rendering: pixelated; } }`;
     return new Promise((resolve) => {
       const go = () => {
         document.body.classList.add('print-img');

@@ -228,6 +228,9 @@ function cable_paper(?array $cfg = null): array
     return [
         'paper_w'   => $paperW,
         'print_w'   => $printW,
+        // 'driver' = ukuran halaman mengikuti kertas yang dipilih di driver printer (Brother: ukuran label khusus);
+        // 'app'    = aplikasi menetapkan ukuran halaman (@page size) — untuk printer thermal roll
+        'page'      => ($c['page'] ?? 'app') === 'driver' ? 'driver' : 'app',
         'height'    => ($c['height'] ?? 'auto') === 'fixed' ? 'fixed' : 'auto',
         'height_mm' => max(20, min(1000, (float) ($c['height_mm'] ?? (float) ($size[1] ?? 80)))),
     ];

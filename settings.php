@@ -305,6 +305,7 @@ if ($authed && $action !== '') {
                 $patch['cable'] = [
                     'paper_w'   => $pw,
                     'print_w'   => $iw,
+                    'page'      => ($_POST['cable_page'] ?? 'app') === 'driver' ? 'driver' : 'app',
                     'height'    => ($_POST['cable_height'] ?? 'auto') === 'fixed' ? 'fixed' : 'auto',
                     'height_mm' => max(20, min(1000, (float) str_replace(',', '.', (string) ($_POST['cable_height_mm'] ?? 80)))),
                 ];
@@ -1135,9 +1136,19 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
     <div id="cable-panel" style="margin-top:16px">
       <h3 style="font-size:15px;margin:0 0 8px">Ukuran kertas Kabel USB</h3>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <button type="button" class="secondary cp-preset" data-w="80" data-p="72">Thermal 80 mm</button>
-        <button type="button" class="secondary cp-preset" data-w="58" data-p="48">Thermal 58 mm</button>
-        <button type="button" class="secondary cp-preset" data-w="62" data-p="58">Brother 62 mm (DK-22205)</button>
+        <button type="button" class="secondary cp-preset" data-w="80" data-p="72" data-page="app">Thermal 80 mm</button>
+        <button type="button" class="secondary cp-preset" data-w="58" data-p="48" data-page="app">Thermal 58 mm</button>
+        <button type="button" class="secondary cp-preset" data-w="62" data-p="58" data-page="app">Brother 62 mm (DK-22205)</button>
+      </div>
+      <div style="margin-bottom:10px">
+        <label class="f">Ukuran halaman</label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="cable_page" value="app" <?= $cp['page'] === 'app' ? 'checked' : '' ?> style="margin-top:3px">
+            <span><b>Diatur aplikasi</b> (disarankan) — halaman selalu tegak: tinggi minimal selebar kertas, isi di tengah.
+              Buat ukuran kertas yang <b>sama persis</b> di driver printer (angka di bawah).</span></label>
+          <label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="cable_page" value="driver" <?= $cp['page'] === 'driver' ? 'checked' : '' ?> style="margin-top:3px">
+            <span><b>Ikuti ukuran kertas di driver printer</b> — lanjutan; hasil bisa berputar/terpotong bila label lebih pendek dari lebarnya.</span></label>
+        </div>
       </div>
       <div class="row" style="flex-wrap:wrap">
         <div style="flex:1 1 150px">
@@ -1151,17 +1162,23 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         <div style="flex:2 1 260px">
           <label class="f">Tinggi halaman</label>
           <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-height:42px">
-            <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cable_height" value="auto" <?= $cp['height'] === 'auto' ? 'checked' : '' ?>> Ikuti isi tiket</label>
+            <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cable_height" value="auto" <?= $cp['height'] === 'auto' ? 'checked' : '' ?>> Ikuti isi tiket <span class="small" style="color:var(--muted)">(minimal selebar kertas agar tidak berputar)</span></label>
             <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cable_height" value="fixed" <?= $cp['height'] === 'fixed' ? 'checked' : '' ?>> Tetap
               <input type="number" name="cable_height_mm" value="<?= e($fmt($cp['height_mm'])) ?>" min="20" max="1000" step="1" style="width:90px"> mm</label>
           </div>
         </div>
       </div>
-      <?php if ($tk): ?>
+      <?php if ($tk): $labelH = (int) ceil($tk['height_mm'] + 1); ?>
         <p class="small" style="margin:8px 0 0;padding:10px 12px;border-radius:10px;background:rgba(242,179,61,.12)">
-          Ukuran halaman cetak saat ini: <b><?= e($fmt($tk['page_w_mm'])) ?> × <?= e($fmt($tk['page_h_mm'])) ?> mm</b>
-          (tiket <?= e($fmt($tk['width_mm'])) ?> × <?= e($fmt($tk['height_mm'])) ?> mm, contoh data).
-          Samakan ukuran kertas di <b>driver printer</b> dengan angka ini — Chrome memakai ukuran kertas yang tersedia di driver.
+          <?php if ($cp['page'] === 'driver'): ?>
+            Tinggi tiket saat ini ±<b><?= e($fmt($tk['height_mm'])) ?> mm</b> (contoh data, dari Desain Tiket).
+            Buat ukuran kertas di <b>driver printer</b>: <b><?= e($fmt($cp['paper_w'])) ?> × <?= $labelH ?> mm</b> dan jadikan bawaan.
+          <?php else: ?>
+            Ukuran halaman cetak saat ini: <b><?= e($fmt($tk['page_w_mm'])) ?> × <?= e($fmt($tk['page_h_mm'])) ?> mm</b>
+            (tiket <?= e($fmt($tk['width_mm'])) ?> × <?= e($fmt($tk['height_mm'])) ?> mm, contoh data).
+            Buat ukuran kertas <b><?= e($fmt($tk['page_w_mm'])) ?> × <?= e($fmt($tk['page_h_mm'])) ?> mm</b> di driver printer dan jadikan bawaan.
+          <?php endif; ?>
+          Chrome selalu memakai ukuran kertas yang dipilih di driver — panjang kertas tidak bisa diubah dari halaman web.
         </p>
       <?php endif; ?>
       <div class="help" style="margin-top:12px">
@@ -1169,9 +1186,13 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         <ol>
           <li>Install driver printer, jadikan <strong>Default Printer</strong> di Windows.</li>
           <li>Thermal: kertas <em>Roll Paper 80 mm</em> &amp; auto cut di Printing Preferences.</li>
-          <li><strong>Brother QL (DK-22205)</strong>: Printing Preferences › <em>Paper Size</em> › <em>Paper Size Setup…</em> ›
-            buat ukuran baru sesuai angka di atas (mis. 62 × <?= $tk ? e($fmt($tk['page_h_mm'])) : '50' ?> mm), jadikan pilihan,
-            aktifkan <em>Cut Every</em> 1 label. Tanpa ini driver memakai panjang bawaan (mis. 100 mm) sehingga ada kertas kosong.</li>
+          <li><strong>Brother QL (DK-22205)</strong>: Control Panel › Devices and Printers › klik kanan printer ›
+            <em>Printing preferences</em> (bukan "Properties" per dokumen) › <em>Paper Size Setup…</em> › <em>New</em> ›
+            lebar 62, panjang sesuai angka di atas (mis. <?= $tk ? e($fmt($cp['page'] === 'driver' ? ceil($tk['height_mm'] + 1) : $tk['page_h_mm'])) : 63 ?> mm) › OK ›
+            pilih ukuran itu di <em>Paper Size</em>, <em>Orientation: Portrait</em>, <em>Cut Every: 1</em> › <em>Apply</em>.
+            Tanpa ini driver memakai panjang bawaan (mis. 100 mm) sehingga ada kertas kosong.
+            Label <b>tidak bisa lebih pendek dari 62 mm</b> lewat browser (jadi landscape → berputar); untuk label pendek pakai
+            mode <b>Print Agent</b> — panjang label selalu pas tanpa driver.</li>
           <li>Kiosk dibuka via <strong>start-kiosk.bat</strong> agar cetak tanpa dialog.</li>
         </ol>
       </div>
@@ -1181,6 +1202,8 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
         b.addEventListener('click', function () {
           document.getElementById('cable_paper_w').value = b.dataset.w;
           document.getElementById('cable_print_w').value = b.dataset.p;
+          var r = document.querySelector('input[name="cable_page"][value="' + b.dataset.page + '"]');
+          if (r) r.checked = true;
         });
       });
     </script>

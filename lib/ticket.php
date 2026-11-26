@@ -396,12 +396,16 @@ function ticket_for_browser(array $d, ?array $cfg = null): array
     $printW = $cp['print_w'];
     $h = $r['height_mm'] * $printW / max(1, $r['width_mm']);
     $pageH = $cp['height'] === 'fixed' ? max($cp['height_mm'], ceil($h + 1)) : ceil($h + 2);
+    // Halaman harus tegak (portrait): bila lebih lebar dari tinggi, Chrome/driver menganggapnya landscape
+    // dan tiket tercetak berputar 90° (mis. desain yang hanya berisi nomor meja). Isi diletakkan di tengah.
+    $pageH = max($pageH, (int) ceil($cp['paper_w']) + 1);
     return [
         'png'       => base64_encode($png),
         'width_mm'  => round($printW, 2),               // lebar gambar = area cetak printer
         'page_w_mm' => $cp['paper_w'],                  // lebar kertas
         'height_mm' => round($h, 2),
         'page_h_mm' => $pageH,                          // tinggi halaman
+        'page_mode' => $cp['page'],                     // 'driver': ukuran halaman dari driver printer
     ];
 }
 
