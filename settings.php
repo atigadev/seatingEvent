@@ -299,6 +299,16 @@ if ($authed && $action !== '') {
             $brPort = trim((string) ($_POST['br_port_manual'] ?? '')) ?: trim((string) ($_POST['br_port'] ?? ''));
             $br = ['port' => $brPort, 'media' => 'DK-22205', 'cut' => !empty($_POST['br_cut'])];
             $patch = ['mode' => $mode, 'brother' => $br];
+            if (isset($_POST['cable_paper_w'])) {   // ukuran kertas mode Kabel USB
+                $pw = max(20, min(300, (float) str_replace(',', '.', (string) $_POST['cable_paper_w'])));
+                $iw = max(10, min($pw, (float) str_replace(',', '.', (string) ($_POST['cable_print_w'] ?? $pw - 8))));
+                $patch['cable'] = [
+                    'paper_w'   => $pw,
+                    'print_w'   => $iw,
+                    'height'    => ($_POST['cable_height'] ?? 'auto') === 'fixed' ? 'fixed' : 'auto',
+                    'height_mm' => max(20, min(1000, (float) str_replace(',', '.', (string) ($_POST['cable_height_mm'] ?? 80)))),
+                ];
+            }
             if (isset($_POST['agent_printer_type'])) {
                 $patch['agent'] = [
                     'printer_type' => $_POST['agent_printer_type'] === 'escpos' ? 'escpos' : 'brother',
@@ -1115,14 +1125,65 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
       </div>
     </div>
 
-    <div id="cable-panel" class="help" style="margin-top:16px">
-      <strong>Mode Kabel USB:</strong>
-      <ol>
-        <li>Install driver printer thermal, jadikan <strong>Default Printer</strong> di Windows.</li>
-        <li>Set kertas <em>Roll Paper 80mm</em> &amp; aktifkan auto cut di Printing Preferences.</li>
-        <li>Kiosk harus dibuka via <strong>start-kiosk.bat</strong> agar cetak tanpa dialog.</li>
-      </ol>
+    <?php
+      $cp = cable_paper($cfg);
+      try {   // ukuran tiket sebenarnya (contoh data) → patokan ukuran kertas di driver printer
+          $tk = ticket_for_browser(['id' => 'NH210293', 'kursi' => '38', 'nama' => 'Nama Peserta Contoh', 'jabatan' => 'Jabatan', 'instansi' => 'Instansi Contoh'], $cfg);
+      } catch (Throwable $ex) { $tk = null; }
+      $fmt = function ($v) { return rtrim(rtrim(number_format((float) $v, 1, ',', ''), '0'), ','); };
+    ?>
+    <div id="cable-panel" style="margin-top:16px">
+      <h3 style="font-size:15px;margin:0 0 8px">Ukuran kertas Kabel USB</h3>
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <button type="button" class="secondary cp-preset" data-w="80" data-p="72">Thermal 80 mm</button>
+        <button type="button" class="secondary cp-preset" data-w="58" data-p="48">Thermal 58 mm</button>
+        <button type="button" class="secondary cp-preset" data-w="62" data-p="58">Brother 62 mm (DK-22205)</button>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <div style="flex:1 1 150px">
+          <label class="f" for="cable_paper_w">Lebar kertas (mm)</label>
+          <input type="number" id="cable_paper_w" name="cable_paper_w" value="<?= e($fmt($cp['paper_w'])) ?>" min="20" max="300" step="0.1">
+        </div>
+        <div style="flex:1 1 150px">
+          <label class="f" for="cable_print_w">Lebar area cetak (mm)</label>
+          <input type="number" id="cable_print_w" name="cable_print_w" value="<?= e($fmt($cp['print_w'])) ?>" min="10" max="300" step="0.1">
+        </div>
+        <div style="flex:2 1 260px">
+          <label class="f">Tinggi halaman</label>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-height:42px">
+            <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cable_height" value="auto" <?= $cp['height'] === 'auto' ? 'checked' : '' ?>> Ikuti isi tiket</label>
+            <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cable_height" value="fixed" <?= $cp['height'] === 'fixed' ? 'checked' : '' ?>> Tetap
+              <input type="number" name="cable_height_mm" value="<?= e($fmt($cp['height_mm'])) ?>" min="20" max="1000" step="1" style="width:90px"> mm</label>
+          </div>
+        </div>
+      </div>
+      <?php if ($tk): ?>
+        <p class="small" style="margin:8px 0 0;padding:10px 12px;border-radius:10px;background:rgba(242,179,61,.12)">
+          Ukuran halaman cetak saat ini: <b><?= e($fmt($tk['page_w_mm'])) ?> × <?= e($fmt($tk['page_h_mm'])) ?> mm</b>
+          (tiket <?= e($fmt($tk['width_mm'])) ?> × <?= e($fmt($tk['height_mm'])) ?> mm, contoh data).
+          Samakan ukuran kertas di <b>driver printer</b> dengan angka ini — Chrome memakai ukuran kertas yang tersedia di driver.
+        </p>
+      <?php endif; ?>
+      <div class="help" style="margin-top:12px">
+        <strong>Mode Kabel USB:</strong>
+        <ol>
+          <li>Install driver printer, jadikan <strong>Default Printer</strong> di Windows.</li>
+          <li>Thermal: kertas <em>Roll Paper 80 mm</em> &amp; auto cut di Printing Preferences.</li>
+          <li><strong>Brother QL (DK-22205)</strong>: Printing Preferences › <em>Paper Size</em> › <em>Paper Size Setup…</em> ›
+            buat ukuran baru sesuai angka di atas (mis. 62 × <?= $tk ? e($fmt($tk['page_h_mm'])) : '50' ?> mm), jadikan pilihan,
+            aktifkan <em>Cut Every</em> 1 label. Tanpa ini driver memakai panjang bawaan (mis. 100 mm) sehingga ada kertas kosong.</li>
+          <li>Kiosk dibuka via <strong>start-kiosk.bat</strong> agar cetak tanpa dialog.</li>
+        </ol>
+      </div>
     </div>
+    <script>
+      document.querySelectorAll('.cp-preset').forEach(function (b) {
+        b.addEventListener('click', function () {
+          document.getElementById('cable_paper_w').value = b.dataset.w;
+          document.getElementById('cable_print_w').value = b.dataset.p;
+        });
+      });
+    </script>
 
     <div class="actions">
       <button class="primary" name="action" value="save_printer">Simpan Printer</button>

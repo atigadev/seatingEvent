@@ -390,21 +390,18 @@ function ticket_for_browser(array $d, ?array $cfg = null): array
     $png = ticket_png($r);
     imagedestroy($r['im']);
     $cfg = $cfg ?? app_config();
-    // Ukuran mengikuti printer Kabel USB (Pengaturan/config: paper_size & printable_width) — sama dengan
-    // test cetak. Gambar Desain Tiket diskalakan ke lebar area cetak printer, tinggi ikut proporsional.
-    $size = preg_split('/\s+/', trim((string) ($cfg['print']['paper_size'] ?? '80mm 80mm')));
-    $pageW = (float) ($size[0] ?? 80);
-    $pageH = (float) ($size[1] ?? 0);
-    $printW = (float) ($cfg['print']['printable_width'] ?? '72mm');
-    if ($pageW <= 0) $pageW = 80;
-    if ($printW <= 0 || $printW > $pageW) $printW = $pageW - 8;
+    // Ukuran mengikuti printer Kabel USB (Pengaturan › Printer › Ukuran kertas Kabel USB) — sama dengan test cetak.
+    // Gambar Desain Tiket diskalakan ke lebar area cetak; tinggi halaman = tinggi isi tiket (atau tetap).
+    $cp = cable_paper($cfg);
+    $printW = $cp['print_w'];
     $h = $r['height_mm'] * $printW / max(1, $r['width_mm']);
+    $pageH = $cp['height'] === 'fixed' ? max($cp['height_mm'], ceil($h + 1)) : ceil($h + 2);
     return [
         'png'       => base64_encode($png),
         'width_mm'  => round($printW, 2),               // lebar gambar = area cetak printer
-        'page_w_mm' => $pageW,                          // lebar kertas
+        'page_w_mm' => $cp['paper_w'],                  // lebar kertas
         'height_mm' => round($h, 2),
-        'page_h_mm' => max($pageH, ceil($h + 1)),       // tinggi halaman: minimal seperti test cetak
+        'page_h_mm' => $pageH,                          // tinggi halaman
     ];
 }
 

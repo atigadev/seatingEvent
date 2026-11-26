@@ -8,6 +8,9 @@ function app_config(): array
         $config = require __DIR__ . '/../config.php';
         // Timpa dengan pengaturan yang disimpan dari halaman Pengaturan
         $saved = load_settings();
+        if (isset($saved['cable']) && is_array($saved['cable'])) {   // ukuran kertas mode Kabel USB (Pengaturan › Printer)
+            $config['print']['cable'] = $saved['cable'];
+        }
         if (isset($saved['mode'])) {
             $config['print']['mode'] = $saved['mode'];
         }
@@ -205,6 +208,29 @@ function timing_config(?array $cfg = null): array
         $out[$k] = max($f[1], min($f[2], (int) ($cfg['kiosk'][$k] ?? $f[3])));
     }
     return $out;
+}
+
+/**
+ * Ukuran halaman cetak mode Kabel USB (mm).
+ * paper_w  = lebar kertas, print_w = lebar area cetak (gambar tiket diskalakan ke lebar ini),
+ * height   = 'auto' (tinggi halaman = tinggi isi tiket) atau 'fixed' (height_mm, minimal setinggi isi tiket).
+ * Bawaan diambil dari config print.paper_size / printable_width.
+ */
+function cable_paper(?array $cfg = null): array
+{
+    $cfg = $cfg ?? app_config();
+    $size = preg_split('/\s+/', trim((string) ($cfg['print']['paper_size'] ?? '80mm 80mm')));
+    $c = (array) ($cfg['print']['cable'] ?? []);
+    $paperW = (float) ($c['paper_w'] ?? (float) ($size[0] ?? 80));
+    $printW = (float) ($c['print_w'] ?? (float) ($cfg['print']['printable_width'] ?? '72mm'));
+    if ($paperW < 20 || $paperW > 300) $paperW = 80;
+    if ($printW < 10 || $printW > $paperW) $printW = max(10, $paperW - 8);
+    return [
+        'paper_w'   => $paperW,
+        'print_w'   => $printW,
+        'height'    => ($c['height'] ?? 'auto') === 'fixed' ? 'fixed' : 'auto',
+        'height_mm' => max(20, min(1000, (float) ($c['height_mm'] ?? (float) ($size[1] ?? 80)))),
+    ];
 }
 
 /** Halaman awal kiosk di alamat utama (index.php): 'index' (Kiosk Scan) atau 'seating' (Seating Arrangement) */
