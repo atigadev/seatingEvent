@@ -124,7 +124,9 @@ return [
         'result_display_seconds' => 4,   // lama tampil hasil sebelum kembali ke mode scan
         'wayfinding' => true,            // tampilkan rute ke meja (denah dari menu Denah & Wayfinding)
         'map_display_seconds' => 20,     // lama tampil hasil + rute (scan berikutnya langsung menggantikan)
-        'seating_display_seconds' => 60, // halaman seating.php: lama data tampil sebelum kembali ke awal
+        'seating_display_seconds' => 60, // halaman seating.php: lama data tampil (belum menekan PRINT) sebelum kembali ke awal
+        'seating_after_print_seconds' => 10, // halaman seating.php: lama tampil setelah tiket tercetak
+        // Semua waktu tampil bisa diubah dari Pengaturan › Waktu Tampil (disimpan di storage/settings.json)
 
         // Video idle di frame denah halaman seating.php (diatur dari Pengaturan › Video Idle)
         'idle_video' => [

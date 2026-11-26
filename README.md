@@ -79,6 +79,8 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
 - Background: `assets/img/seating-bg.jpg` (data contoh pada gambar asli sudah dihapus).
   Posisi 83 meja: `assets/seating-tables.json` (piksel pada gambar 1920×1200) — perbarui bila denah berubah.
 - Uji tampilan tanpa scan: `seating.php?demo=40`.
+- **Waktu tampil** (Pengaturan › Waktu Tampil): setelah tiket tercetak (bawaan 10 dtk), data tampil bila belum
+  menekan PRINT (60 dtk), hasil/rute/error di Kiosk Scan, dan jeda scan QR yang sama. Berlaku di kiosk dalam ±5 detik.
 - **Halaman awal** (Pengaturan › Halaman Awal Kiosk): pilih Kiosk Scan atau Seating Arrangement untuk alamat
   utama (`/` · `index.php`). Kiosk yang terbuka di alamat utama ikut berpindah saat idle (±5 detik).
   Tetap bisa dibuka langsung: `index.php?page=scan` (Kiosk Scan) dan `seating.php`.

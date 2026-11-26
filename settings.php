@@ -72,6 +72,18 @@ if ($authed && $action !== '') {
                 . '. Kiosk yang sedang terbuka di alamat utama ikut berpindah dalam ±5 detik.');
             back('halaman');
 
+        /* --- Waktu tampil --- */
+        case 'timing':
+            $t = [];
+            foreach (TIMING_FIELDS as $k => $f) {
+                if (isset($_POST[$k]) && is_numeric($_POST[$k])) $t[$k] = max($f[1], min($f[2], (int) $_POST[$k]));
+            }
+            $s = load_settings();
+            $s['timing'] = $t;
+            save_settings($s);
+            flash('Waktu tampil disimpan. Kiosk yang sedang terbuka memakai nilai baru dalam ±5 detik.');
+            back('waktu');
+
         /* --- Sumber data peserta --- */
         case 'save_api':
         case 'test_api':
@@ -440,7 +452,7 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
 <?php else: ?>
 
   <nav class="jump">
-    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#unduh-kiosk">Unduh Kiosk</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
+    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#waktu">Waktu Tampil</a><a href="#unduh-kiosk">Unduh Kiosk</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
   </nav>
 
   <!-- ================= 1. SAKLAR SCAN ================= -->
@@ -481,6 +493,36 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
       <button class="primary" name="action" value="start_page">Simpan Halaman Awal</button>
       <a class="btn secondary" href="index.php?page=scan" target="_blank">Buka Kiosk Scan</a>
       <a class="btn secondary" href="seating.php" target="_blank">Buka Seating</a>
+    </div>
+  </form>
+
+  <!-- ================= WAKTU TAMPIL ================= -->
+  <?php $timing = timing_config($cfg); ?>
+  <form method="post" class="card" id="waktu">
+    <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+    <h2>Waktu Tampil</h2>
+    <p class="desc">Berapa lama data peserta tampil sebelum layar kembali ke tampilan awal. Scan berikutnya selalu
+      langsung menggantikan data yang sedang tampil. Berlaku di semua kiosk dalam ±5 detik.</p>
+    <?php
+      $groups = ['seating' => 'Halaman Seating Arrangement', 'index' => 'Halaman Kiosk Scan', 'both' => 'Kedua halaman'];
+      foreach ($groups as $g => $title):
+    ?>
+      <h3 style="font-size:14px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px"><?= e($title) ?></h3>
+      <div class="row" style="flex-wrap:wrap">
+        <?php foreach (TIMING_FIELDS as $k => $f): if ($f[4] !== $g) continue; ?>
+          <div style="flex:1 1 220px">
+            <label class="f" for="t_<?= e($k) ?>"><?= e($f[0]) ?></label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="t_<?= e($k) ?>" name="<?= e($k) ?>" value="<?= (int) $timing[$k] ?>"
+                     min="<?= $f[1] ?>" max="<?= $f[2] ?>" step="1" required style="max-width:110px">
+              <span class="small" style="color:var(--muted)">detik <span style="opacity:.7">(<?= $f[1] ?>–<?= $f[2] ?>, bawaan <?= $f[3] ?>)</span></span>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endforeach; ?>
+    <div class="actions">
+      <button class="primary" name="action" value="timing">Simpan Waktu Tampil</button>
     </div>
   </form>
 

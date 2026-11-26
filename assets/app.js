@@ -389,6 +389,12 @@
     if (s.start_page === 'seating' && !/[?&](page|kiosk|testprint)=/.test(location.search)
         && !busy && screen.className === 'state-' + idleState()) { location.reload(); return; }
     if (window.Station && stationSel && Array.isArray(s.stations)) Station.fill(stationSel, s.stations);
+    if (s.timing) {   // Pengaturan › Waktu Tampil (berlaku untuk tampilan berikutnya)
+      C.resultSeconds = s.timing.result_display_seconds || C.resultSeconds;
+      C.mapSeconds = s.timing.map_display_seconds || C.mapSeconds;
+      C.errorSeconds = s.timing.error_display_seconds || C.errorSeconds;
+      if (typeof s.timing.duplicate_cooldown_seconds === 'number') C.cooldownSeconds = s.timing.duplicate_cooldown_seconds;
+    }
     if (s.standby) {
       $('sb-title').textContent = s.standby.title || '';
       $('sb-sub').textContent = s.standby.subtitle || '';

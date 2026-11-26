@@ -19,6 +19,8 @@ $jsConfig = [
     'printMode'      => $cfg['print']['mode'],
     'scanActive'     => (bool) $cfg['kiosk']['scan_active'],
     'holdSeconds'    => (int) ($cfg['kiosk']['seating_display_seconds'] ?? 60),
+    'afterPrintSeconds' => (int) ($cfg['kiosk']['seating_after_print_seconds'] ?? 10),
+    'errorSeconds'   => (int) ($cfg['kiosk']['error_display_seconds'] ?? 4),
     'cooldownSeconds'=> (int) $cfg['kiosk']['duplicate_cooldown_seconds'],
     'cameraFacing'   => $cfg['kiosk']['camera_facing'] ?? 'environment',
     'idleVideo'      => idle_video_config($cfg),
@@ -139,7 +141,7 @@ $jsConfig = [
 <?php endif; ?>
 <script src="assets/station.js?v=1"></script>
 <script src="assets/ticket-print.js?v=2"></script>
-<script src="assets/seating.js?v=18"></script>
+<script src="assets/seating.js?v=19"></script>
 <script>
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

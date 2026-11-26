@@ -29,6 +29,11 @@ function app_config(): array
         if (array_key_exists('wayfinding', $saved)) {
             $config['kiosk']['wayfinding'] = (bool) $saved['wayfinding'];
         }
+        if (isset($saved['timing']) && is_array($saved['timing'])) {
+            foreach (TIMING_FIELDS as $k => $f) {
+                if (isset($saved['timing'][$k])) $config['kiosk'][$k] = max($f[1], min($f[2], (int) $saved['timing'][$k]));
+            }
+        }
         if (isset($saved['start_page']) && in_array($saved['start_page'], ['index', 'seating'], true)) {
             $config['kiosk']['start_page'] = $saved['start_page'];
         }
@@ -174,7 +179,32 @@ function kiosk_status(array $cfg): array
         'print_mode'  => $cfg['print']['mode'],
         'wayfinding'  => (bool) ($cfg['kiosk']['wayfinding'] ?? true),
         'start_page'  => start_page($cfg),
+        'timing'      => timing_config($cfg),
     ];
+}
+
+/**
+ * Waktu tampil kiosk yang bisa diatur dari Pengaturan.
+ * kunci config => [label, min, max, default, halaman]
+ */
+const TIMING_FIELDS = [
+    'seating_after_print_seconds' => ['Setelah tiket tercetak', 3, 600, 10, 'seating'],
+    'seating_display_seconds'     => ['Data tampil bila belum menekan PRINT', 5, 600, 60, 'seating'],
+    'result_display_seconds'      => ['Hasil scan tampil', 2, 120, 4, 'index'],
+    'map_display_seconds'         => ['Hasil + rute denah (wayfinding) tampil', 3, 300, 20, 'index'],
+    'error_display_seconds'       => ['Pesan error tampil', 2, 120, 4, 'both'],
+    'duplicate_cooldown_seconds'  => ['Abaikan scan QR yang sama selama', 0, 120, 5, 'both'],
+];
+
+/** Nilai waktu tampil yang berlaku (detik) */
+function timing_config(?array $cfg = null): array
+{
+    $cfg = $cfg ?? app_config();
+    $out = [];
+    foreach (TIMING_FIELDS as $k => $f) {
+        $out[$k] = max($f[1], min($f[2], (int) ($cfg['kiosk'][$k] ?? $f[3])));
+    }
+    return $out;
 }
 
 /** Halaman awal kiosk di alamat utama (index.php): 'index' (Kiosk Scan) atau 'seating' (Seating Arrangement) */

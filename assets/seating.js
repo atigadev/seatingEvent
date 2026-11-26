@@ -373,9 +373,10 @@
     scheduleReset();
   }
 
-  function scheduleReset() {
+  // kembali ke tampilan awal setelah {sec} detik (bawaan: lama data tampil sebelum menekan PRINT)
+  function scheduleReset(sec) {
     clearTimeout(resetTimer);
-    resetTimer = setTimeout(showIdle, C.holdSeconds * 1000);
+    resetTimer = setTimeout(showIdle, (sec || C.holdSeconds) * 1000);
   }
 
   /* ---------- scan ---------- */
@@ -409,7 +410,7 @@
       showIdle();
       setStatus(e.message || String(e), 'err');
       beep(220, 0.35);
-      scheduleReset();
+      scheduleReset(C.errorSeconds);
     } finally {
       busy = false;
       focusInput();
@@ -423,6 +424,7 @@
     btn.classList.add('busy');
     setStatus('Mencetak…');
     clearTimeout(resetTimer);
+    let printed = false;
     try {
       const station = window.Station ? Station.get() : '';
       const res = await fetch(C.printUrl, { method: 'POST', body: new URLSearchParams({ qr: current.qr, station }), cache: 'no-store' });
@@ -444,13 +446,15 @@
         const r = await waitJob(json.job_id);
         if (r.status !== 'done') throw new Error(r.error || 'Printer tidak merespons.');
         if (r.rerouted && r.station) {
-          // printer stasiun ini mati → tiket keluar di stasiun lain
+          // printer stasiun ini mati → tiket keluar di stasiun lain (beri waktu baca pesan)
+          printed = true;
           setStatus('Tiket tercetak di printer stasiun ' + r.station.toUpperCase() + '. Silakan ambil di sana.', 'ok');
           return;
         }
       } else if (json.printed === false) {
         throw new Error(json.print_error || 'Gagal mencetak.');
       }
+      printed = true;
       setStatus(json.reprint > 0 ? `Tiket dicetak ulang (sudah ${json.reprint}x sebelumnya). Silakan ambil tiket Anda.` : 'Tiket tercetak. Silakan ambil tiket Anda.', 'ok');
     } catch (e) {
       if (e && e.name === 'NotFoundError') setStatus('Pemilihan printer dibatalkan.', 'err');
@@ -459,7 +463,8 @@
     } finally {
       busy = false;
       btn.classList.remove('busy');
-      scheduleReset();
+      // tercetak → kembali ke awal lebih cepat; gagal → tetap tampil agar bisa tekan PRINT lagi
+      scheduleReset(printed ? C.afterPrintSeconds : C.holdSeconds);
       focusInput();
     }
   });
@@ -573,6 +578,12 @@
       // halaman awal diganti ke Kiosk Scan → bila halaman ini tampil di alamat utama (bukan seating.php langsung), ikut berpindah
       if (s.start_page === 'index' && !/seating\.php$/i.test(location.pathname) && !busy && !current) { location.reload(); return; }
       if (s.idle_video) IdleVideo.configure(s.idle_video);   // pengaturan video diubah dari Pengaturan
+      if (s.timing) {   // Pengaturan › Waktu Tampil (berlaku untuk tampilan berikutnya)
+        C.holdSeconds = s.timing.seating_display_seconds || C.holdSeconds;
+        C.afterPrintSeconds = s.timing.seating_after_print_seconds || C.afterPrintSeconds;
+        C.errorSeconds = s.timing.error_display_seconds || C.errorSeconds;
+        if (typeof s.timing.duplicate_cooldown_seconds === 'number') C.cooldownSeconds = s.timing.duplicate_cooldown_seconds;
+      }
       if (s.print_mode && s.print_mode !== C.printMode && !busy) { location.reload(); return; }
       if (typeof s.scan_active === 'boolean' && s.scan_active !== scanActive) {
         scanActive = s.scan_active;
