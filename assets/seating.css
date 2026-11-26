@@ -14,7 +14,7 @@ body {
    jauh dari 16:9 (tablet 4:3, portrait), sehingga tidak pernah ada bilah polos. */
 body::before {
   content: ""; position: fixed; inset: -60px; z-index: -1;
-  background: url("img/seating-bg.jpg") center / cover no-repeat;
+  background: url("img/seating-bg.jpg?v=2") center / cover no-repeat;
   filter: blur(28px) saturate(1.1) brightness(.97);
 }
 
@@ -24,7 +24,7 @@ body::before {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(100vw, 177.78vh); width: min(100vw, 177.78dvh);
   aspect-ratio: 8000 / 4500;
-  background: url("img/seating-bg.jpg") center / 100% 100% no-repeat;
+  background: url("img/seating-bg.jpg?v=2") center / 100% 100% no-repeat;
   container-type: inline-size;
 }
 .stage.fitted { transform: none; }

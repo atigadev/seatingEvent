@@ -39,7 +39,7 @@ $jsConfig = [
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
-<link rel="stylesheet" href="assets/seating.css?v=16">
+<link rel="stylesheet" href="assets/seating.css?v=17">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
   @media print { #ticket { width: <?= e($cfg['print']['printable_width'] ?? '72mm') ?> !important; } }

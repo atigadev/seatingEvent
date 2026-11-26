@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/../lib/functions.php';
 
-const M_VERSION = '1.0.1';
+const M_VERSION = '1.0.2';
 $cfg = app_config();
 $event = (string) $cfg['event_name'];
 $sub = (string) ($cfg['event_sub'] ?? '');
@@ -113,7 +113,7 @@ $v = function (string $f): string { return $f . '?v=' . (is_file(__DIR__ . '/' .
         <button type="button" class="link" id="btn-zoom">Perbesar</button>
       </div>
       <div class="map" id="map">
-        <img src="denah.php" alt="Denah seating" id="map-img" loading="lazy">
+        <img src="denah.php?v=<?= @filemtime(__DIR__ . '/../assets/img/seating-bg.jpg') ?>" alt="Denah seating" id="map-img" loading="lazy">
         <span class="pin" id="pin"><i></i><b id="pin-num"></b></span>
       </div>
     </div>
@@ -146,7 +146,7 @@ $v = function (string $f): string { return $f . '?v=' . (is_file(__DIR__ . '/' .
 <!-- denah diperbesar -->
 <div class="zoom" id="zoom" hidden>
   <div class="zoom-bar"><b id="zoom-title">Lokasi Meja</b><button type="button" class="icon-btn" id="zoom-close" aria-label="Tutup">✕</button></div>
-  <div class="zoom-body" id="zoom-body"><div class="zoom-inner" id="zoom-inner"><img src="denah.php" alt=""><span class="pin" id="zpin"><i></i><b id="zpin-num"></b></span></div></div>
+  <div class="zoom-body" id="zoom-body"><div class="zoom-inner" id="zoom-inner"><img src="denah.php?v=<?= @filemtime(__DIR__ . '/../assets/img/seating-bg.jpg') ?>" alt=""><span class="pin" id="zpin"><i></i><b id="zpin-num"></b></span></div></div>
 </div>
 
 <div class="loading" id="loading" hidden><span></span></div>
