@@ -91,6 +91,25 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
     tanpa kontrol, dipotong agar judul YouTube & bilah hitam tidak terlihat. Butuh internet di kiosk;
     video yang tidak boleh di-embed / dihapus / offline dilewati otomatis.
 
+## Kiosk di Hosting (`start-kiosk-hosting.bat`)
+
+PC kiosk di venue **tidak perlu XAMPP** — cukup Chrome + file `start-kiosk-hosting.bat`:
+1. Salin `start-kiosk-hosting.bat` ke PC kiosk (ubah `URL` bila domain berbeda; `STATION` untuk Print Agent).
+2. Jalankan → Chrome terbuka layar penuh ke hosting, cetak tanpa dialog. Tutup: **Alt+F4**.
+3. Agar menyala otomatis saat Windows hidup: jalankan `start-kiosk-hosting.bat /pasang`.
+4. Halaman yang tampil (Kiosk Scan / Seating) diatur dari Pengaturan › Halaman Awal Kiosk.
+
+Mode printer saat aplikasi di hosting:
+| Mode | Di hosting | Catatan |
+|---|---|---|
+| Kabel USB | ✅ | Browser kiosk yang mencetak ke Default Printer PC kiosk |
+| Bluetooth (Chrome) | ✅ | Browser kiosk tersambung langsung ke printer BLE |
+| Print Agent | ✅ | Brother/thermal di jaringan venue; jalankan `agent/start-agent.bat` di PC venue |
+| Bluetooth COM / Brother langsung | ❌ | Server hosting tidak bisa menjangkau printer di venue |
+
+Tablet: Android — buka di Chrome › Tambahkan ke layar utama, lalu **Sematkan aplikasi** (Screen pinning);
+iPad — Safari › Tambah ke Layar Utama, lalu **Akses Terpandu** (Guided Access). Cetak dari tablet: Print Agent.
+
 ## Aplikasi Petugas HP (`m/`)
 
 PWA terpisah (scope `m/`, desain sendiri, terang/gelap) untuk petugas di lapangan:
