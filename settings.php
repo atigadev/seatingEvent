@@ -46,6 +46,21 @@ if (isset($_GET['logout'])) {
 }
 $authed = !empty($_SESSION['seat_admin']);
 
+/* ---------- Unduh log cetak / arsip (hanya setelah login) ---------- */
+if ($authed && isset($_GET['download'])) {
+    if ($_GET['download'] === 'print-log') {
+        send_csv_download(app_config()['log_file'], 'print-log-' . date('Ymd-His') . '.csv');
+    }
+    if ($_GET['download'] === 'arsip') {
+        $f = basename((string) ($_GET['f'] ?? ''));
+        if (preg_match('/^print-log-[0-9-]+\.csv$/', $f) && is_file(print_log_archive_dir() . '/' . $f)) {
+            send_csv_download(print_log_archive_dir() . '/' . $f, $f);
+        }
+    }
+    http_response_code(404);
+    exit('File tidak ditemukan.');
+}
+
 /* ---------- Aksi (hanya setelah login) ---------- */
 $action = (string) ($_POST['action'] ?? '');
 if ($authed && $action !== '') {
@@ -71,6 +86,34 @@ if ($authed && $action !== '') {
             flash('Halaman awal kiosk: ' . ($sp === 'seating' ? 'Seating Arrangement' : 'Kiosk Scan')
                 . '. Kiosk yang sedang terbuka di alamat utama ikut berpindah dalam ±5 detik.');
             back('halaman');
+
+        /* --- Log cetak: reset (arsipkan) & hapus arsip --- */
+        case 'log_reset':
+            if (trim((string) ($_POST['confirm_reset'] ?? '')) !== 'RESET') {
+                flash('Reset dibatalkan: ketik RESET (huruf besar) pada kolom konfirmasi.', 'err');
+                back('log');
+            }
+            try {
+                $arsip = print_log_reset();
+                $msg = $arsip ? 'Log cetak direset. Log lama disimpan sebagai arsip ' . $arsip . '.' : 'Log cetak sudah kosong.';
+                if (!empty($_POST['reset_counter'])) {
+                    require_once __DIR__ . '/lib/ticket.php';
+                    ticket_counter_set(0);
+                    $msg .= ' Nomor antrian kembali ke 0.';
+                }
+                flash($msg);
+            } catch (Throwable $ex) {
+                flash('Gagal reset log: ' . $ex->getMessage(), 'err');
+            }
+            back('log');
+
+        case 'log_archive_delete':
+            $f = basename((string) ($_POST['file'] ?? ''));
+            if (preg_match('/^print-log-[0-9-]+\.csv$/', $f) && is_file(print_log_archive_dir() . '/' . $f)) {
+                @unlink(print_log_archive_dir() . '/' . $f);
+                flash('Arsip ' . $f . ' dihapus.');
+            }
+            back('log');
 
         /* --- Waktu tampil --- */
         case 'timing':
@@ -452,7 +495,7 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
 <?php else: ?>
 
   <nav class="jump">
-    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#waktu">Waktu Tampil</a><a href="#unduh-kiosk">Unduh Kiosk</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
+    <a href="#scan">Saklar Scan</a><a href="#halaman">Halaman Awal</a><a href="#waktu">Waktu Tampil</a><a href="#log">Log Cetak</a><a href="#unduh-kiosk">Unduh Kiosk</a><a href="#petugas">Aplikasi Petugas</a><a href="#sumber">Sumber Data</a><a href="#standby">Teks Standby</a><a href="#denah">Denah</a><a href="#video">Video Idle</a><a href="#printer">Printer</a><a href="#password">Password</a>
   </nav>
 
   <!-- ================= 1. SAKLAR SCAN ================= -->
@@ -525,6 +568,77 @@ $pwDefault = $authed && empty(load_settings()['admin_pin_hash']);
       <button class="primary" name="action" value="timing">Simpan Waktu Tampil</button>
     </div>
   </form>
+
+  <!-- ================= LOG CETAK ================= -->
+  <?php $ls = print_log_stats(); $arsips = print_log_archives(); ?>
+  <div class="card" id="log">
+    <h2>Log Cetak</h2>
+    <p class="desc">Catatan setiap scan &amp; cetak tiket (<code>storage/print-log.csv</code>). Dipakai untuk menghitung
+      "tiket dicetak ulang" di kiosk dan status cetak di aplikasi petugas.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+      <?php foreach ([
+        ['Tiket tercetak', number_format($ls['ok'], 0, ',', '.')],
+        ['Peserta (unik)', number_format($ls['people'], 0, ',', '.')],
+        ['Gagal cetak', number_format($ls['failed'], 0, ',', '.')],
+        ['Total baris', number_format($ls['rows'], 0, ',', '.')],
+      ] as [$lbl, $val]): ?>
+        <div style="background:rgba(0,0,0,.18);border-radius:10px;padding:10px 12px">
+          <div class="small" style="color:var(--muted)"><?= e($lbl) ?></div>
+          <div style="font-size:22px;font-weight:800"><?= e($val) ?></div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <p class="small" style="color:var(--muted);margin:0 0 12px">
+      <?php if ($ls['rows']): ?>
+        Catatan pertama <?= e((string) $ls['first']) ?> · terakhir <?= e((string) $ls['last']) ?> ·
+        <?= number_format($ls['size'] / 1024, 1, ',', '.') ?> KB
+      <?php else: ?>
+        Log masih kosong.
+      <?php endif; ?>
+    </p>
+    <div class="actions" style="margin-top:0">
+      <a class="btn secondary" href="settings.php?download=print-log">Unduh Log (CSV / Excel)</a>
+    </div>
+
+    <form method="post" style="margin-top:16px;padding:14px;border:1px solid rgba(229,72,77,.45);border-radius:12px;background:rgba(229,72,77,.08)"
+          onsubmit="return confirm('Reset log cetak sekarang? Log lama akan dipindahkan ke arsip.');">
+      <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+      <b>Reset log cetak</b>
+      <p class="small" style="margin:4px 0 10px;color:var(--muted)">Log saat ini dipindahkan ke <b>arsip</b> (tidak hilang) lalu dimulai dari kosong —
+        mis. sebelum hari acara setelah uji coba. Setelah reset, semua peserta dihitung belum pernah mencetak.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px">
+        <input type="checkbox" name="reset_counter" value="1"> Reset juga nomor antrian ke 0 (bila Desain Tiket memakai nomor antrian)
+      </label>
+      <div class="row" style="align-items:flex-end">
+        <div>
+          <label class="f" for="confirm_reset">Ketik <b>RESET</b> untuk konfirmasi</label>
+          <input type="text" id="confirm_reset" name="confirm_reset" autocomplete="off" placeholder="RESET" pattern="RESET" required>
+        </div>
+        <div style="flex:0 0 auto"><button class="danger" name="action" value="log_reset" style="background:#e5484d;color:#fff;border:0">Reset Log</button></div>
+      </div>
+    </form>
+
+    <?php if ($arsips): ?>
+      <h3 style="font-size:14px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Arsip log</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <?php foreach ($arsips as $a): $as = print_log_stats(print_log_archive_dir() . '/' . $a['name']); ?>
+          <form method="post" style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.18);border-radius:10px;padding:8px 10px;flex-wrap:wrap"
+                onsubmit="return confirm('Hapus arsip <?= e($a['name']) ?> secara permanen?');">
+            <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+            <input type="hidden" name="file" value="<?= e($a['name']) ?>">
+            <div style="flex:1;min-width:200px">
+              <b style="font-size:14px"><?= e($a['name']) ?></b><br>
+              <span class="small" style="color:var(--muted)"><?= number_format($as['ok'], 0, ',', '.') ?> tiket · <?= number_format($as['rows'], 0, ',', '.') ?> baris
+                · <?= e((string) ($as['first'] ?? '-')) ?> s/d <?= e((string) ($as['last'] ?? '-')) ?></span>
+            </div>
+            <a class="btn secondary" href="settings.php?download=arsip&amp;f=<?= e(rawurlencode($a['name'])) ?>">Unduh</a>
+            <button class="secondary" name="action" value="log_archive_delete" title="Hapus arsip">✕</button>
+          </form>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
 
   <!-- ================= UNDUH SKRIP KIOSK ================= -->
   <form method="get" action="kiosk-download.php" class="card" id="unduh-kiosk">

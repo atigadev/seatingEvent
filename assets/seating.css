@@ -230,6 +230,23 @@ body::before {
 .station-sel { padding: 9px 10px; max-width: 240px; }
 .station-sel option { color: #000; }
 .btn-icon { display: inline-grid; place-items: center; padding: 8px 10px; text-decoration: none; }
+
+/* ajakan pasang aplikasi (tablet) — kecil di pojok kanan atas, tidak menutupi data peserta */
+.tb-install {
+  position: fixed; z-index: 20; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+  display: flex; align-items: center; gap: 10px; max-width: min(440px, calc(100vw - 24px));
+  padding: 10px 10px 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .96); color: #10264a;
+  box-shadow: 0 8px 28px rgba(10, 30, 70, .28); font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  animation: tb-in .4s ease;
+}
+@keyframes tb-in { from { opacity: 0; transform: translateY(-8px); } }
+.tb-install img { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; }
+.tb-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tb-text b { font-size: 14.5px; }
+.tb-text span { font-size: 12.5px; color: #51617d; }
+.tb-go { border: 0; border-radius: 10px; padding: 9px 14px; background: #1f5ea8; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.tb-x { border: 0; background: none; font-size: 22px; line-height: 1; color: #8796ad; padding: 2px 6px; cursor: pointer; }
+@media print { .tb-install { display: none !important; } }
 .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #2fbf71; }
 .status-dot.offline { background: #e5484d; }
 

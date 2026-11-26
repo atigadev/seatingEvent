@@ -36,12 +36,16 @@ $jsConfig = [
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Seating Arrangement — <?= e($cfg['event_name']) ?></title>
-<link rel="manifest" href="manifest.json">
+<!-- PWA tablet: aplikasi "Seating PTBI" layar penuh, landscape (manifest terpisah dari Kiosk Scan) -->
+<link rel="manifest" href="manifest-seating.json">
 <meta name="theme-color" content="#1f5ea8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Seating PTBI">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
-<link rel="stylesheet" href="assets/seating.css?v=17">
+<link rel="stylesheet" href="assets/seating.css?v=18">
 <style>
   @page { size: <?= e($cfg['print']['paper_size']) ?>; margin: 0; }
   @media print { #ticket { width: <?= e($cfg['print']['printable_width'] ?? '72mm') ?> !important; } }
@@ -111,6 +115,9 @@ $jsConfig = [
     <button type="button" id="btn-camera" class="btn-ghost">Kamera</button>
   <?php endif; ?>
   <select id="station-sel" class="btn-ghost station-sel" title="Stasiun cetak (printer terdekat)" hidden></select>
+  <button type="button" id="btn-fullscreen" class="btn-ghost btn-icon" title="Layar penuh" aria-label="Layar penuh" hidden>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+  </button>
   <span class="printer-mode" title="Mode printer">Printer: <?= e(print_mode_label($cfg)) ?></span>
   <a href="settings.php" class="btn-ghost btn-icon" title="Pengaturan" aria-label="Pengaturan">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -142,6 +149,7 @@ $jsConfig = [
 <script src="assets/station.js?v=1"></script>
 <script src="assets/ticket-print.js?v=2"></script>
 <script src="assets/seating.js?v=19"></script>
+<script src="assets/tablet.js?v=1"></script>
 <script>
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

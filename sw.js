@@ -5,7 +5,7 @@
  * - API (api/*, mock/api.php): selalu ke jaringan, tidak pernah di-cache.
  * Naikkan VERSION setiap kali aset diubah agar perangkat mengambil versi baru.
  */
-const VERSION = 'seat-v14';
+const VERSION = 'seat-v15';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 
@@ -23,6 +23,15 @@ const PRECACHE = [
   'assets/icons/icon-512.png',
   'assets/icons/apple-touch-icon.png',
   'manifest.json',
+  // halaman Seating (PWA tablet)
+  'seating.php',
+  'manifest-seating.json',
+  'assets/seating.css?v=18',
+  'assets/seating.js?v=19',
+  'assets/tablet.js?v=1',
+  'assets/station.js?v=1',
+  'assets/ticket-print.js?v=2',
+  'assets/img/seating-bg.jpg?v=2',
 ];
 
 self.addEventListener('install', (event) => {

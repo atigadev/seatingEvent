@@ -562,6 +562,91 @@ function map_participant(array $json): array
     return $out;
 }
 
+/* ------------------------------------------------------------------
+ * Log cetak: ringkasan, arsip & reset (Pengaturan › Log Cetak)
+ * Arsip disimpan di storage/log-arsip/print-log-YYYYmmdd-His.csv
+ * ------------------------------------------------------------------ */
+function print_log_archive_dir(): string
+{
+    return dirname(app_config()['log_file']) . '/log-arsip';
+}
+
+/** Ringkasan isi log: jumlah baris, tiket tercetak, peserta unik, waktu pertama & terakhir */
+function print_log_stats(?string $file = null): array
+{
+    $file = $file ?? app_config()['log_file'];
+    clearstatcache(true, $file);
+    $s = ['exists' => is_file($file), 'rows' => 0, 'ok' => 0, 'people' => 0, 'failed' => 0, 'first' => null, 'last' => null,
+          'size' => is_file($file) ? (int) filesize($file) : 0];
+    if (!$s['exists'] || !($fh = fopen($file, 'r'))) return $s;
+    $ids = [];
+    $header = true;
+    while (($row = fgetcsv($fh)) !== false) {
+        if ($header) { $header = false; if (($row[0] ?? '') === 'waktu') continue; }
+        if (!isset($row[0]) || $row[0] === null || $row[0] === '') continue;
+        $s['rows']++;
+        $s['first'] = $s['first'] ?? $row[0];
+        $s['last'] = $row[0];
+        $st = (string) ($row[5] ?? '');
+        if ($st === 'OK') { $s['ok']++; $ids[(string) ($row[1] ?? '')] = true; }
+        elseif (strpos($st, 'GAGAL') === 0) $s['failed']++;
+    }
+    fclose($fh);
+    $s['people'] = count($ids);
+    return $s;
+}
+
+/** Daftar arsip log (terbaru dulu) */
+function print_log_archives(): array
+{
+    $dir = print_log_archive_dir();
+    $out = [];
+    foreach (glob($dir . '/print-log-*.csv') ?: [] as $f) {
+        $out[] = ['name' => basename($f), 'size' => (int) filesize($f), 'time' => (int) filemtime($f)];
+    }
+    usort($out, fn($a, $b) => $b['time'] <=> $a['time']);
+    return $out;
+}
+
+/**
+ * Reset log cetak: pindahkan log saat ini ke arsip (tidak dihapus), log baru dimulai dari kosong.
+ * Mengembalikan nama file arsip, atau null bila log kosong / belum ada.
+ */
+function print_log_reset(): ?string
+{
+    $file = app_config()['log_file'];
+    if (!is_file($file)) return null;
+    $dir = print_log_archive_dir();
+    if (!is_dir($dir)) mkdir($dir, 0775, true);
+    $name = 'print-log-' . date('Ymd-His') . '.csv';
+    $fh = fopen($file, 'r+');
+    if (!$fh) throw new RuntimeException('Log cetak tidak bisa dibuka.');
+    flock($fh, LOCK_EX);                       // tunggu penulisan kiosk yang sedang berjalan
+    $ok = copy($file, $dir . '/' . $name);
+    if ($ok) {
+        ftruncate($fh, 0);
+        rewind($fh);
+        fputcsv($fh, ['waktu', 'id', 'nama', 'instansi', 'kursi', 'status', 'keterangan']);
+        fflush($fh);
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    if (!$ok) throw new RuntimeException('Gagal membuat arsip log.');
+    return $name;
+}
+
+/** Kirim file CSV ke browser (dengan BOM UTF-8 agar nama berhuruf khusus tampil benar di Excel) */
+function send_csv_download(string $path, string $downloadName): void
+{
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+    header('Cache-Control: no-store');
+    echo "\xEF\xBB\xBF";
+    if (is_file($path)) readfile($path);
+    else echo "waktu,id,nama,instansi,kursi,status,keterangan\r\n";
+    exit;
+}
+
 /** Catat ke CSV & kembalikan jumlah cetak sebelumnya untuk ID ini */
 function log_print(string $id, array $p, string $status, string $note = ''): int
 {

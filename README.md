@@ -79,6 +79,10 @@ Halaman scan alternatif dengan desain resmi PTBI 2026 (halaman `index.php` tetap
 - Background: `assets/img/seating-bg.jpg` (data contoh pada gambar asli sudah dihapus).
   Posisi 83 meja: `assets/seating-tables.json` (piksel pada gambar 1920×1200) — perbarui bila denah berubah.
 - Uji tampilan tanpa scan: `seating.php?demo=40`.
+- **PWA tablet**: `manifest-seating.json` (aplikasi "Seating PTBI", layar penuh, landscape, terpisah dari Kiosk Scan).
+  `assets/tablet.js`: layar penuh otomatis pada ketukan pertama di tablet + tombol ⛶ di menu bawah, kunci landscape
+  (Android), ajakan pasang aplikasi (Android: tombol Pasang; iPad: petunjuk Tambah ke Layar Utama). Aset Seating
+  ikut di-cache service worker agar aplikasi terbuka cepat & tetap tampil saat sinyal putus.
 - **Waktu tampil** (Pengaturan › Waktu Tampil): setelah tiket tercetak (bawaan 10 dtk), data tampil bila belum
   menekan PRINT (60 dtk), hasil/rute/error di Kiosk Scan, dan jeda scan QR yang sama. Berlaku di kiosk dalam ±5 detik.
 - **Halaman awal** (Pengaturan › Halaman Awal Kiosk): pilih Kiosk Scan atau Seating Arrangement untuk alamat
@@ -115,6 +119,14 @@ Mode printer saat aplikasi di hosting:
 
 Tablet: Android — buka di Chrome › Tambahkan ke layar utama, lalu **Sematkan aplikasi** (Screen pinning);
 iPad — Safari › Tambah ke Layar Utama, lalu **Akses Terpandu** (Guided Access). Cetak dari tablet: Print Agent.
+
+## Log Cetak (Pengaturan › Log Cetak)
+
+- Ringkasan: tiket tercetak, peserta unik, gagal cetak, waktu pertama/terakhir.
+- **Unduh Log** (CSV dengan BOM UTF-8, langsung terbaca di Excel).
+- **Reset Log**: ketik `RESET` untuk konfirmasi → log dipindahkan ke `storage/log-arsip/print-log-YYYYmmdd-His.csv`
+  (tidak hilang), log baru mulai kosong. Opsional: reset nomor antrian ke 0. Arsip bisa diunduh / dihapus.
+- Setelah reset, hitungan "dicetak ulang" di kiosk & status cetak di aplikasi petugas mulai dari nol.
 
 ## Aplikasi Petugas HP (`m/`)
 
