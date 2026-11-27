@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/../lib/functions.php';
 
-const M_VERSION = '1.0.2';
+const M_VERSION = '1.0.3';
 $cfg = app_config();
 $event = (string) $cfg['event_name'];
 $sub = (string) ($cfg['event_sub'] ?? '');

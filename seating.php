@@ -148,7 +148,7 @@ $jsConfig = [
 <?php endif; ?>
 <script src="assets/station.js?v=1"></script>
 <script src="assets/ticket-print.js?v=4"></script>
-<script src="assets/seating.js?v=19"></script>
+<script src="assets/seating.js?v=20"></script>
 <script src="assets/tablet.js?v=1"></script>
 <script>
   if ('serviceWorker' in navigator && window.isSecureContext) {

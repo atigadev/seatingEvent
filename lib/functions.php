@@ -419,6 +419,16 @@ function api_fetch_participant(string $url, string $id): array
     if ($data['unassigned']) {
         $data['kursi'] = '';
     }
+    // Server registrasi kadang menaruh pemberitahuan di kolom nama, mis.
+    // "Untuk Info Nomor Kursi belum tersedia, mohon dapat di cek pada jam 16.00 WIB. Terima kasih"
+    // → jadikan pesan (bukan nama peserta) agar layar tidak menampilkannya sebagai nama.
+    $data['message'] = '';
+    if (preg_match('/nomor\s+(kursi|meja)\s+belum|belum\s+tersedia|mohon\s+(dapat\s+)?di\s*cek|silakan\s+cek\s+kembali/i', $data['nama'])) {
+        $data['message'] = trim(preg_replace('/\s+/', ' ', $data['nama']));
+        $data['nama'] = '';
+        $data['unassigned'] = true;
+        $data['kursi'] = '';
+    }
     return $data;
 }
 

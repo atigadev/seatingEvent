@@ -5,7 +5,7 @@
  * - API (../api/): selalu ke jaringan, tidak pernah di-cache (data peserta).
  * Naikkan VERSION setiap kali aset diubah.
  */
-const VERSION = 'm-1.0.2';
+const VERSION = 'm-1.0.3';
 const CACHE = 'cekmeja-' + VERSION;
 const SHELL = ['./', 'app.css', 'app.js', 'pwa.js', 'manifest.json', 'denah.php', '../assets/vendor/html5-qrcode.min.js', '../assets/icons/icon-192.png'];
 

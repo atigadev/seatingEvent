@@ -65,6 +65,7 @@ json_response([
         'jabatan'  => (string) ($data['jabatan'] ?? ''),
         'instansi' => (string) ($data['instansi'] ?? ''),
         'kursi'    => $kursi,
+        'message'  => (string) ($data['message'] ?? ''),   // pemberitahuan dari server registrasi (mis. nomor kursi belum tersedia)
     ],
     'meja'       => $unassigned ? '' : ticket_table_only($kursi),
     'unassigned' => $unassigned,

@@ -100,8 +100,24 @@
   }
 
   /* ---------- Proses scan ---------- */
+  // QR berisi link (https://registrasi.../seat/EI110446) → kirim ID-nya saja.
+  // Parameter berisi alamat https:// domain lain dianggap serangan "Remote File Inclusion" oleh firewall
+  // hosting (ModSecurity) dan bisa membuat IP kiosk diblokir.
+  function qrId(raw) {
+    const s = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(s)) return s;
+    try {
+      const u = new URL(s);
+      const q = u.searchParams.get('id');
+      if (q) return q.trim();
+      const seg = u.pathname.split('/').filter(Boolean).pop();
+      if (seg) return decodeURIComponent(seg).trim();
+    } catch (_) { /* bukan URL valid */ }
+    return s;
+  }
+
   async function handleScan(raw, source) {
-    const code = String(raw || '').trim();
+    const code = qrId(raw);
     if (!code || busy || !scanActive) return;  // scan diabaikan bila belum dimulai
 
     const now = Date.now();
@@ -134,7 +150,7 @@
       showResult(json.data, json.reprint || 0);
       if (json.unassigned) {
         // data peserta ada, tetapi meja belum ditentukan panitia → tidak dicetak
-        $('r-status').textContent = 'Meja Anda belum ditentukan. Silakan hubungi petugas registrasi.';
+        $('r-status').textContent = (json.data && json.data.message) || 'Meja Anda belum ditentukan. Silakan hubungi petugas registrasi.';
         $('r-status').classList.add('fail');
         beep(440, 0.25);
         scheduleReset(Math.max(C.resultSeconds, 8));

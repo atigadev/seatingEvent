@@ -367,7 +367,7 @@
     }
 
     btn.hidden = !!d.unassigned; // meja belum ditentukan → tidak ada yang bisa dicetak
-    if (d.unassigned) setStatus('Meja Anda belum ditentukan. Silakan hubungi petugas registrasi.', 'err');
+    if (d.unassigned) setStatus(d.message || 'Meja Anda belum ditentukan. Silakan hubungi petugas registrasi.', 'err');
     else if (!key) setStatus('Meja ' + d.kursi + ' tidak ditemukan di denah. Silakan tekan PRINT atau hubungi petugas.', '');
     else setStatus('Silakan tekan PRINT untuk mencetak tiket meja Anda.', '');
     scheduleReset();
@@ -380,8 +380,24 @@
   }
 
   /* ---------- scan ---------- */
+  // QR berisi link (https://registrasi.../seat/EI110446) → kirim ID-nya saja.
+  // Parameter berisi alamat https:// domain lain dianggap serangan "Remote File Inclusion" oleh firewall
+  // hosting (ModSecurity) dan bisa membuat IP kiosk diblokir.
+  function qrId(raw) {
+    const s = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(s)) return s;
+    try {
+      const u = new URL(s);
+      const q = u.searchParams.get('id');
+      if (q) return q.trim();
+      const seg = u.pathname.split('/').filter(Boolean).pop();
+      if (seg) return decodeURIComponent(seg).trim();
+    } catch (_) { /* bukan URL valid */ }
+    return s;
+  }
+
   async function handleScan(raw, source) {
-    const code = String(raw || '').trim();
+    const code = qrId(raw);
     if (!code || busy) return;
     const now = Date.now();
     if (code === lastCode) {

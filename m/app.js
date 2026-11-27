@@ -168,7 +168,22 @@
     lookup(v);
   });
 
+  // QR berisi link → kirim ID-nya saja (alamat https:// di parameter bisa dianggap serangan oleh firewall hosting)
+  function qrId(raw) {
+    const s = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(s)) return s;
+    try {
+      const u = new URL(s);
+      const q = u.searchParams.get('id');
+      if (q) return q.trim();
+      const seg = u.pathname.split('/').filter(Boolean).pop();
+      if (seg) return decodeURIComponent(seg).trim();
+    } catch (_) { /* bukan URL valid */ }
+    return s;
+  }
+
   async function lookup(code) {
+    code = qrId(code);
     if (busy) return;
     busy = true;
     $('loading').hidden = false;
@@ -207,7 +222,7 @@
       if (res.unassigned) {
         hero.classList.add('none');
         $('r-meja').textContent = 'Meja belum ditentukan';
-        $('r-kursi').textContent = 'Arahkan peserta ke meja registrasi';
+        $('r-kursi').textContent = d.message || 'Arahkan peserta ke meja registrasi';
         $('r-chips').innerHTML = chip('warn', 'Belum ada meja');
       } else {
         $('r-meja').textContent = res.meja || d.kursi;
